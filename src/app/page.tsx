@@ -76,22 +76,44 @@ export default async function Home() {
                   "Upload and compare player projections with community consensus",
                 badge: "Predictions",
               },
-            ].map((feature, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-orange-600">{feature.icon}</div>
-                    <Badge variant="secondary" className="text-xs">
-                      {feature.badge}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+            ].map((feature, index) => {
+              // Make Player Database card clickable
+              const isPlayerDatabase = feature.title === "Player Database";
+              
+              const cardContent = (
+                <Card className={`hover:shadow-lg transition-shadow ${
+                  isPlayerDatabase ? 'cursor-pointer hover:border-orange-200' : ''
+                }`}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-orange-600">{feature.icon}</div>
+                      <Badge variant="secondary" className="text-xs">
+                        {feature.badge}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {feature.title}
+                      {isPlayerDatabase && (
+                        <ArrowUpRight className="w-4 h-4 text-orange-600" />
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              );
+              
+              return isPlayerDatabase ? (
+                <Link key={index} href="/players">
+                  {cardContent}
+                </Link>
+              ) : (
+                <div key={index}>
+                  {cardContent}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
