@@ -9,6 +9,11 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+*.pyc
+*.log
+
+# data
+/data
 
 # testing
 /coverage

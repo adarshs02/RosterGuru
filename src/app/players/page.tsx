@@ -1,5 +1,6 @@
 import React from "react";
 import BaseTable from "@/components/base-table";
+import Navbar from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Search, Filter, Download, RefreshCw } from "lucide-react";
 export default function PlayersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <Navbar />
       {/* Header Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-8">

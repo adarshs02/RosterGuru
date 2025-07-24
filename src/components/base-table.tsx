@@ -21,6 +21,7 @@ interface PlayerData {
   assists: number;
   steals: number;
   blocks: number;
+  turnovers: number;
   fg_pct: number;
   ft_pct: number;
   three_pm: number;
@@ -48,6 +49,7 @@ const defaultPlayerData: PlayerData[] = [
     assists: 9.0,
     steals: 1.3,
     blocks: 0.9,
+    turnovers: 3.2,
     fg_pct: 58.3,
     ft_pct: 82.2,
     three_pm: 0.9,
@@ -64,6 +66,7 @@ const defaultPlayerData: PlayerData[] = [
     assists: 8.0,
     steals: 1.4,
     blocks: 0.5,
+    turnovers: 4.1,
     fg_pct: 45.7,
     ft_pct: 78.6,
     three_pm: 2.8,
@@ -74,28 +77,30 @@ const defaultPlayerData: PlayerData[] = [
     rank: 3,
     player: "Giannis Antetokounmpo",
     team: "MIL",
-    position: ["PF", "C"], // Multiple positions
+    position: ["PF", "C"],
     points: 31.1,
     rebounds: 11.5,
     assists: 6.2,
     steals: 1.2,
     blocks: 1.1,
+    turnovers: 3.8,
     fg_pct: 55.3,
     ft_pct: 64.5,
     three_pm: 0.6,
     zscore: 2.5,
-    trend: "down",
+    trend: "neutral",
   },
   {
     rank: 4,
     player: "Jayson Tatum",
     team: "BOS",
-    position: ["SF", "PF"], // Multiple positions
+    position: ["SF", "PF"],
     points: 26.9,
     rebounds: 8.1,
     assists: 4.9,
     steals: 1.0,
     blocks: 0.6,
+    turnovers: 2.9,
     fg_pct: 46.6,
     ft_pct: 81.3,
     three_pm: 3.1,
@@ -112,6 +117,7 @@ const defaultPlayerData: PlayerData[] = [
     assists: 6.2,
     steals: 2.0,
     blocks: 0.9,
+    turnovers: 2.8,
     fg_pct: 53.5,
     ft_pct: 87.4,
     three_pm: 1.3,
@@ -196,6 +202,7 @@ export default function BaseTable({
                 <TableHead className="text-center">AST</TableHead>
                 <TableHead className="text-center">STL</TableHead>
                 <TableHead className="text-center">BLK</TableHead>
+                <TableHead className="text-center">TO</TableHead>
                 <TableHead className="text-center">FG%</TableHead>
                 <TableHead className="text-center">FT%</TableHead>
                 <TableHead className="text-center">3PM</TableHead>
@@ -240,6 +247,7 @@ export default function BaseTable({
                   </TableCell>
                   <TableCell className="text-center">{player.steals}</TableCell>
                   <TableCell className="text-center">{player.blocks}</TableCell>
+                  <TableCell className="text-center">{player.turnovers}</TableCell>
                   <TableCell className="text-center">
                     {player.fg_pct}%
                   </TableCell>
