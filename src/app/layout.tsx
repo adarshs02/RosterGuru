@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { TempoInit } from "@/components/tempo-init";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
@@ -41,6 +43,8 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
           <TempoInit />
+          <Analytics />
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
