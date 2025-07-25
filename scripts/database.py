@@ -37,7 +37,9 @@ class DatabaseManager:
             tables_to_clear = ['per_game_stats', 'per_36_stats', 'total_stats']
             
             for table in tables_to_clear:
-                result = self.client.table(table).delete().neq('id', 0).execute()
+                # Since we're using UUID primary keys, we can't use neq('id', 0)
+                # Instead, we'll delete all records by using a condition that's always true
+                result = self.client.table(table).delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
                 logger.info(f"Cleared {table} table")
             
             logger.info("Successfully cleared all stats data from database")

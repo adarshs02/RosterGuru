@@ -75,27 +75,138 @@ class NBAStatsCollector:
         
         return self._espn_positions_cache
     
+    def _normalize_player_name(self, name: str) -> str:
+        """Normalize player name for matching (remove accents, lowercase, trim)"""
+        import unicodedata
+        
+        # Remove accents and diacritics
+        normalized = unicodedata.normalize('NFD', name)
+        ascii_name = ''.join(char for char in normalized if unicodedata.category(char) != 'Mn')
+        
+        # Convert to lowercase and strip whitespace
+        return ascii_name.lower().strip()
+    
     def enhance_players_with_positions(self, players_data: List[Dict]) -> List[Dict]:
-        """Enhance player data with ESPN positions"""
+        """Enhance player data with ESPN positions using normalized name matching"""
         espn_positions = self.get_espn_positions()
+        
+        # Create normalized name mapping for ESPN data
+        normalized_espn_positions = {}
+        for espn_name, positions in espn_positions.items():
+            normalized_name = self._normalize_player_name(espn_name)
+            normalized_espn_positions[normalized_name] = {
+                'original_name': espn_name,
+                'positions': positions
+            }
         
         enhanced_players = []
         for player in players_data:
             enhanced_player = player.copy()
             player_name = player.get('player_name', '')
+            normalized_player_name = self._normalize_player_name(player_name)
             
-            # Try to find positions from ESPN data
+            # Try exact match first
             if player_name in espn_positions:
                 enhanced_player['position'] = espn_positions[player_name]
-                logger.debug(f"Found ESPN positions for {player_name}: {espn_positions[player_name]}")
+                logger.debug(f"Found exact ESPN match for {player_name}: {espn_positions[player_name]}")
+            # Try normalized match
+            elif normalized_player_name in normalized_espn_positions:
+                match_data = normalized_espn_positions[normalized_player_name]
+                enhanced_player['position'] = match_data['positions']
+                logger.debug(f"Found normalized ESPN match for {player_name} -> {match_data['original_name']}: {match_data['positions']}")
             else:
-                # Default position if not found in ESPN
-                enhanced_player['position'] = ['F']  # Default to Forward
-                logger.debug(f"No ESPN position found for {player_name}, using default: F")
+                # Use intelligent position inference as fallback
+                inferred_positions = self._infer_player_position(player_name, enhanced_player)
+                enhanced_player['position'] = inferred_positions
+                logger.debug(f"No ESPN match found for {player_name}, inferred: {inferred_positions}")
             
             enhanced_players.append(enhanced_player)
         
         return enhanced_players
+    
+    def _infer_player_position(self, player_name: str, player_data: Dict) -> List[str]:
+        """Infer player position using multiple heuristics"""
+        # Known position mappings for common players (can be expanded)
+        known_positions = {
+            # Guards
+            'Stephen Curry': ['PG', 'SG'],
+            'LeBron James': ['SF', 'PF'],
+            'Kevin Durant': ['SF', 'PF'], 
+            'Giannis Antetokounmpo': ['PF', 'SF'],
+            'Luka Doncic': ['PG', 'SG'],
+            'Jayson Tatum': ['SF', 'PF'],
+            'Nikola Jokic': ['C'],
+            'Joel Embiid': ['C'],
+            'Anthony Davis': ['PF', 'C'],
+            'Kawhi Leonard': ['SF', 'SG'],
+            'James Harden': ['PG', 'SG'],
+            'Russell Westbrook': ['PG'],
+            'Chris Paul': ['PG'],
+            'Damian Lillard': ['PG'],
+            'Kyrie Irving': ['PG', 'SG'],
+            'Klay Thompson': ['SG', 'SF'],
+            'Draymond Green': ['PF', 'SF'],
+            'Jimmy Butler': ['SF', 'SG'],
+            'Paul George': ['SF', 'SG'],
+            'Khris Middleton': ['SF', 'SG'],
+            'Rudy Gobert': ['C'],
+            'Karl-Anthony Towns': ['C', 'PF'],
+            'Devin Booker': ['SG', 'SF'],
+            'Trae Young': ['PG'],
+            'Donovan Mitchell': ['SG', 'PG'],
+            'Bradley Beal': ['SG', 'SF'],
+            'Zion Williamson': ['PF', 'SF'],
+            'Ja Morant': ['PG'],
+            'De\'Aaron Fox': ['PG'],
+            'Shai Gilgeous-Alexander': ['PG', 'SG'],
+            'Jaylen Brown': ['SG', 'SF'],
+            'Bam Adebayo': ['C', 'PF'],
+        }
+        
+        # Check known positions first
+        if player_name in known_positions:
+            return known_positions[player_name]
+        
+        # Position inference based on name patterns and common positions
+        name_lower = player_name.lower()
+        
+        # Common guard surnames/patterns
+        guard_indicators = [
+            'point', 'pg', 'guard', 'paul', 'chris', 'stephen', 'steph', 'kyrie', 
+            'damian', 'dame', 'russell', 'westbrook', 'harden', 'curry', 'irving'
+        ]
+        
+        # Common forward surnames/patterns  
+        forward_indicators = [
+            'lebron', 'durant', 'kawhi', 'leonard', 'george', 'butler', 'tatum',
+            'brown', 'forward', 'sf', 'pf', 'james', 'kevin', 'paul'
+        ]
+        
+        # Common center surnames/patterns
+        center_indicators = [
+            'center', 'embiid', 'jokic', 'gobert', 'adams', 'capela', 'towns',
+            'davis', 'anthony', 'joel', 'nikola', 'rudy'
+        ]
+        
+        # Check for position indicators in name
+        for indicator in guard_indicators:
+            if indicator in name_lower:
+                return ['PG', 'SG']
+        
+        for indicator in center_indicators:
+            if indicator in name_lower:
+                return ['C']
+                
+        for indicator in forward_indicators:
+            if indicator in name_lower:
+                return ['SF', 'PF']
+        
+        # Default position based on common distribution
+        # Guards are most common, then forwards, then centers
+        # Give a mix instead of just 'F'
+        default_positions = ['SF', 'PF']  # Most versatile default
+        
+        return default_positions
     
     def collect_season_data(self, season: str) -> Dict:
         """Collect all stats for a given season using per-game stats as authoritative filter"""

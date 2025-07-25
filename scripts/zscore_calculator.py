@@ -38,9 +38,27 @@ class ZScoreCalculator:
             # Handle null values
             values = df[category].fillna(0)
             
-            # Calculate mean and standard deviation
-            mean_val = values.mean()
-            std_val = values.std()
+            # Calculate mean and standard deviation from top 30%
+            if category in self.negative_categories:
+                # For negative categories, lower is better. "Top" is the bottom 30%.
+                cutoff = values.quantile(0.3)
+                top_performers = values[values <= cutoff]
+                if len(top_performers) > 1:  # Need at least 2 for std dev
+                    mean_val = top_performers.mean()
+                    std_val = top_performers.std()
+                else:
+                    mean_val = values.mean()  # Fallback to overall mean
+                    std_val = values.std()    # Fallback to overall std dev
+            else:
+                # For positive categories, higher is better. "Top" is the top 30%.
+                cutoff = values.quantile(0.7)
+                top_performers = values[values >= cutoff]
+                if len(top_performers) > 1:  # Need at least 2 for std dev
+                    mean_val = top_performers.mean()
+                    std_val = top_performers.std()
+                else:
+                    mean_val = values.mean()  # Fallback to overall mean
+                    std_val = values.std()    # Fallback to overall std dev
             
             if std_val == 0:
                 logger.warning(f"Standard deviation is 0 for {category}, setting Z-scores to 0")

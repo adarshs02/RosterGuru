@@ -16,7 +16,7 @@ export default function Navbar() {
         <Link
           href="/"
           prefetch
-          className="text-xl font-bold text-orange-600 flex items-center gap-2"
+          className="text-xl font-bold text-blue-600 flex items-center gap-2"
         >
           <BarChart3 className="w-6 h-6" />
           RosterGuru

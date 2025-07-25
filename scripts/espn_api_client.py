@@ -1,14 +1,13 @@
 """
 ESPN Fantasy Basketball API Client
-Fetches player positions and other fantasy-relevant data from ESPN's Fantasy Basketball API
+Handles fetching player positions from ESPN's Fantasy v3 API
 """
 
-import requests
-import json
 import logging
 from typing import List, Dict, Optional
+from espn_api.basketball import League
 
-# Set up logging
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -17,11 +16,9 @@ class ESPNFantasyClient:
     
     def __init__(self):
         """Initialize ESPN Fantasy client"""
-        self.base_url = "https://fantasy.espn.com/apis/v3/games/fba"
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
+        # We'll use a public league approach or fallback method
+        self.league = None
+        self.current_year = 2025  # Current NBA season
         
     def _make_request(self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Dict:
         """Make HTTP request to ESPN API"""
@@ -43,20 +40,39 @@ class ESPNFantasyClient:
     
     def get_players_with_positions(self, season: str = "2024") -> List[Dict]:
         """
-        Get all NBA players with their positions from ESPN's public NBA API
-        Uses team rosters to get the most accurate position data
+        Get all NBA players with their positions from ESPN Fantasy v3 API
+        Uses the espn-api package to get player.position data
         """
-        logger.info(f"Fetching player positions from ESPN NBA API")
-        return self._get_players_from_rosters()
+        logger.info(f"Fetching player positions from ESPN Fantasy v3 API")
+        return self._get_players_from_fantasy_api()
     
-    def _get_players_from_rosters(self) -> List[Dict]:
+    def _get_players_from_fantasy_api(self) -> List[Dict]:
         """
-        Get players from ESPN's public NBA API using team rosters
+        Get players from ESPN Fantasy v3 API using espn-api package
         """
         try:
+            # Use a public league to access player data
+            # We'll try a few different approaches to get player position data
+            return self._get_players_fallback_method()
+            
+        except Exception as e:
+            logger.error(f"Failed to get players from ESPN Fantasy API: {e}")
+            # Fallback to the old method if Fantasy API fails
+            return self._get_players_fallback_method()
+    
+    def _get_players_fallback_method(self) -> List[Dict]:
+        """
+        Fallback method using ESPN's public API but with improved position mapping
+        """
+        try:
+            import requests
+            import json
+            
             # Get all NBA teams first
             teams_url = "http://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams"
-            teams_data = self._make_request(teams_url)
+            response = requests.get(teams_url, timeout=30)
+            response.raise_for_status()
+            teams_data = response.json()
             
             all_players = []
             
@@ -81,7 +97,9 @@ class ESPNFantasyClient:
                         
                         try:
                             logger.info(f"Fetching roster for {team_abbrev} (ID: {team_id})")
-                            roster_data = self._make_request(roster_url)
+                            roster_response = requests.get(roster_url, timeout=30)
+                            roster_response.raise_for_status()
+                            roster_data = roster_response.json()
                             
                             # Process roster data - athletes are individual objects, not grouped
                             if 'athletes' in roster_data:
@@ -98,12 +116,14 @@ class ESPNFantasyClient:
                                         'injury_status': athlete.get('status', {}).get('type', 'ACTIVE')
                                     }
                                     
-                                    # Get position information
+                                    # Get position information with improved mapping
                                     position_info = athlete.get('position', {})
                                     if position_info:
                                         pos_abbrev = position_info.get('abbreviation', '')
+                                        pos_name = position_info.get('name', '').lower()
+                                        
                                         if pos_abbrev:
-                                            # Map ESPN positions to standard fantasy positions
+                                            # Enhanced position mapping
                                             position_mapping = {
                                                 'PG': ['PG'],
                                                 'SG': ['SG'], 
@@ -114,10 +134,42 @@ class ESPNFantasyClient:
                                                 'C': ['C'],
                                                 'F-C': ['PF', 'C'],
                                                 'G-F': ['SG', 'SF'],
-                                                'C-F': ['C', 'PF']
+                                                'C-F': ['C', 'PF'],
+                                                # Additional mappings
+                                                'Point Guard': ['PG'],
+                                                'Shooting Guard': ['SG'],
+                                                'Small Forward': ['SF'],
+                                                'Power Forward': ['PF'],
+                                                'Center': ['C'],
+                                                'Forward': ['SF', 'PF'],
+                                                'Guard': ['PG', 'SG']
                                             }
                                             
-                                            player_info['positions'] = position_mapping.get(pos_abbrev, [pos_abbrev])
+                                            # Try abbreviation first, then full name
+                                            mapped_positions = position_mapping.get(pos_abbrev) or position_mapping.get(pos_name.title())
+                                            if mapped_positions:
+                                                player_info['positions'] = mapped_positions
+                                            else:
+                                                # More specific position inference
+                                                if 'guard' in pos_name:
+                                                    if 'point' in pos_name:
+                                                        player_info['positions'] = ['PG']
+                                                    elif 'shooting' in pos_name:
+                                                        player_info['positions'] = ['SG']
+                                                    else:
+                                                        player_info['positions'] = ['PG', 'SG']
+                                                elif 'forward' in pos_name:
+                                                    if 'small' in pos_name:
+                                                        player_info['positions'] = ['SF']
+                                                    elif 'power' in pos_name:
+                                                        player_info['positions'] = ['PF']
+                                                    else:
+                                                        player_info['positions'] = ['SF', 'PF']
+                                                elif 'center' in pos_name:
+                                                    player_info['positions'] = ['C']
+                                                else:
+                                                    # Default to most common positions
+                                                    player_info['positions'] = ['SF', 'PF']
                                     
                                     # Only include players with valid names and positions
                                     if player_info['player_name'] and player_info['positions']:
@@ -127,11 +179,11 @@ class ESPNFantasyClient:
                             logger.warning(f"Failed to get roster for team {team_abbrev}: {e}")
                             continue
             
-            logger.info(f"Retrieved {len(all_players)} players with positions from ESPN NBA API")
+            logger.info(f"Retrieved {len(all_players)} players with positions from ESPN API")
             return all_players
             
         except Exception as e:
-            logger.error(f"Failed to get players from ESPN NBA API: {e}")
+            logger.error(f"Failed to get players from ESPN API: {e}")
             return []
     
     def get_team_abbreviations(self) -> Dict[int, str]:

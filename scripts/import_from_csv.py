@@ -404,12 +404,12 @@ def main():
     
     logger.info(f"Found {len(seasons)} seasons to import: {sorted(seasons)}")
     
-    # Import all historical players data from per_game files first
-    # (they contain all unique players across all seasons)
+    # Import all historical players data from players files first
+    # (they contain position data and all unique players across all seasons)
     all_players_data = []
     
     for filename in per_game_files:
-        if filename.startswith('per_game_stats_'):
+        if filename.startswith('players_'):
             logger.info(f"Reading players from {filename}")
             player_data = importer.read_csv_file(filename, 'per_game')
             if player_data:
@@ -419,7 +419,7 @@ def main():
                         'nba_player_id': row.get('nba_player_id'),
                         'player_name': row.get('player_name'),
                         'position': row.get('position', ''),
-                        'is_active': True  # Assume active for now
+                        'is_active': row.get('is_active', True)
                     }
                     # Only add if we don't already have this player
                     if not any(p['nba_player_id'] == player_info['nba_player_id'] for p in all_players_data):

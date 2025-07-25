@@ -44,10 +44,11 @@ class DatabaseCleaner:
             
             # Delete all records
             # Note: Supabase requires a filter, so we use a condition that matches all records
+            # Since we're using UUID primary keys, we need to use a proper UUID format
             if table_name == 'players':
-                result = self.client.table(table_name).delete().neq('player_id', 0).execute()
+                result = self.client.table(table_name).delete().neq('player_id', '00000000-0000-0000-0000-000000000000').execute()
             else:
-                result = self.client.table(table_name).delete().neq('id', 0).execute()
+                result = self.client.table(table_name).delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
             
             # Verify deletion
             new_count = self.get_table_count(table_name)

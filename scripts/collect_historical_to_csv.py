@@ -48,18 +48,98 @@ class HistoricalCSVCollector:
             self.espn_positions[player['player_name']] = player['positions']
         logger.info(f"Retrieved positions for {len(self.espn_positions)} players")
     
-    def enhance_players_with_positions(self, players_data: List[Dict]) -> List[Dict]:
-        """Add ESPN positions to player data"""
-        enhanced_players = []
+    def _normalize_player_name(self, name: str) -> str:
+        """Normalize player name for matching (remove accents, lowercase, trim)"""
+        import unicodedata
         
+        # Remove accents and diacritics
+        normalized = unicodedata.normalize('NFD', name)
+        ascii_name = ''.join(char for char in normalized if unicodedata.category(char) != 'Mn')
+        
+        # Convert to lowercase and strip whitespace
+        return ascii_name.lower().strip()
+    
+    def _infer_player_position(self, player_name: str, player_data: Dict) -> List[str]:
+        """Infer player position using heuristics and known players"""
+        
+        # Known player positions (fallback for key players)
+        known_players = {
+            'lebron james': ['SF', 'PF'],
+            'stephen curry': ['PG'],
+            'kevin durant': ['SF', 'PF'],
+            'giannis antetokounmpo': ['PF', 'C'],
+            'luka doncic': ['PG', 'SG'],
+            'nikola jokic': ['C'],
+            'joel embiid': ['C'],
+            'jimmy butler': ['SF', 'SG'],
+            'jayson tatum': ['SF', 'PF'],
+            'damian lillard': ['PG'],
+            'russell westbrook': ['PG'],
+            'chris paul': ['PG'],
+            'anthony davis': ['PF', 'C'],
+            'kawhi leonard': ['SF', 'SG'],
+            'paul george': ['SF', 'SG'],
+            'james harden': ['PG', 'SG'],
+            'kyrie irving': ['PG', 'SG'],
+            'bradley beal': ['SG'],
+            'donovan mitchell': ['SG', 'PG'],
+            'zion williamson': ['PF'],
+            'ja morant': ['PG'],
+            'trae young': ['PG'],
+            'devin booker': ['SG'],
+            'karl-anthony towns': ['C', 'PF'],
+            'rudy gobert': ['C'],
+            'ben simmons': ['PG', 'PF'],
+            'pascal siakam': ['PF', 'SF'],
+            'klay thompson': ['SG'],
+            'draymond green': ['PF', 'C']
+        }
+        
+        normalized_name = self._normalize_player_name(player_name)
+        
+        # Check known players first
+        if normalized_name in known_players:
+            return known_players[normalized_name]
+        
+        # Simple heuristics based on name patterns
+        if any(keyword in normalized_name for keyword in ['jr', 'iii', 'ii']):
+            # Many guards/wings have suffixes
+            return ['SG', 'SF']
+        
+        # Default fallback - still use 'F' but as a list for consistency
+        return ['F']
+    
+    def enhance_players_with_positions(self, players_data: List[Dict]) -> List[Dict]:
+        """Add ESPN positions to player data using normalized name matching"""
+        # Create normalized name mapping for ESPN data
+        normalized_espn_positions = {}
+        for espn_name, positions in self.espn_positions.items():
+            normalized_name = self._normalize_player_name(espn_name)
+            normalized_espn_positions[normalized_name] = {
+                'original_name': espn_name,
+                'positions': positions
+            }
+        
+        enhanced_players = []
         for player in players_data:
             enhanced_player = player.copy()
             player_name = player['player_name']
+            normalized_player_name = self._normalize_player_name(player_name)
             
+            # Try exact match first
             if player_name in self.espn_positions:
-                enhanced_player['position'] = ','.join(self.espn_positions[player_name])
+                enhanced_player['position'] = '|'.join(self.espn_positions[player_name])
+                logger.debug(f"Found exact ESPN match for {player_name}: {self.espn_positions[player_name]}")
+            # Try normalized match
+            elif normalized_player_name in normalized_espn_positions:
+                match_data = normalized_espn_positions[normalized_player_name]
+                enhanced_player['position'] = '|'.join(match_data['positions'])
+                logger.debug(f"Found normalized ESPN match for {player_name} -> {match_data['original_name']}: {match_data['positions']}")
             else:
-                enhanced_player['position'] = 'F'  # Default position
+                # Use intelligent position inference as fallback
+                inferred_positions = self._infer_player_position(player_name, enhanced_player)
+                enhanced_player['position'] = '|'.join(inferred_positions)
+                logger.debug(f"No ESPN match found for {player_name}, inferred: {inferred_positions}")
             
             enhanced_players.append(enhanced_player)
         

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import BaseTable from "@/components/base-table";
 import Navbar from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fetchPlayersWithStats, PlayerData } from '@/lib/playerData';
+import CircleSpinner from "@/components/ui/circle-spinner";
 
 // Available seasons for the year selector
 const AVAILABLE_SEASONS = [
@@ -30,6 +32,46 @@ export default function PlayersPage() {
   const [selectedSeason, setSelectedSeason] = useState<string>("2024-25");
   const [statsType, setStatsType] = useState<StatsType>("per_game");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [topPlayer, setTopPlayer] = useState<PlayerData | null>(null);
+  const [topPlayerLoading, setTopPlayerLoading] = useState(true);
+
+  // Fetch top z-score player
+  useEffect(() => {
+    const fetchTopPlayer = async () => {
+      try {
+        setTopPlayerLoading(true);
+        const players = await fetchPlayersWithStats(selectedSeason, statsType);
+        
+        // Filter players with valid z-scores and find the top one
+        const playersWithZScores = players.filter(p => 
+          p.zscore_total !== undefined && !isNaN(p.zscore_total)
+        );
+        
+        if (playersWithZScores.length > 0) {
+          // Sort by z-score descending and get the top player
+          const sortedPlayers = playersWithZScores.sort((a, b) => 
+            (b.zscore_total || 0) - (a.zscore_total || 0)
+          );
+          setTopPlayer(sortedPlayers[0]);
+        } else {
+          setTopPlayer(null);
+        }
+      } catch (error) {
+        console.error('Error fetching top player:', error);
+        setTopPlayer(null);
+      } finally {
+        setTopPlayerLoading(false);
+      }
+    };
+
+    // Only fetch for per_game and per_36 (total stats don't have z-scores)
+    if (statsType !== 'total') {
+      fetchTopPlayer();
+    } else {
+      setTopPlayer(null);
+      setTopPlayerLoading(false);
+    }
+  }, [selectedSeason, statsType]);
 
   // Get display text for stats type
   const getStatsTypeDisplay = (type: StatsType) => {
@@ -191,8 +233,30 @@ export default function PlayersPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">+2.8</div>
-                <p className="text-xs text-gray-500 mt-1">Nikola Jokić</p>
+                {topPlayerLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <CircleSpinner size="sm" />
+                  </div>
+                ) : statsType === 'total' ? (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">N/A</div>
+                    <p className="text-xs text-gray-500 mt-1">No z-scores for totals</p>
+                  </>
+                ) : topPlayer ? (
+                  <>
+                    <div className={`text-2xl font-bold ${
+                      (topPlayer.zscore_total || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {(topPlayer.zscore_total || 0) >= 0 ? '+' : ''}{(topPlayer.zscore_total || 0).toFixed(1)}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{topPlayer.player_name}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">--</div>
+                    <p className="text-xs text-gray-500 mt-1">No data available</p>
+                  </>
+                )}
               </CardContent>
             </Card>
             

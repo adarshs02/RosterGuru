@@ -19,6 +19,17 @@ export interface PlayerData {
   three_pointers_made: number
   three_point_percentage: number
   free_throw_percentage: number
+  // Individual stat z-scores for custom calculation
+  zscore_points: number
+  zscore_rebounds: number
+  zscore_assists: number
+  zscore_steals: number
+  zscore_blocks: number
+  zscore_turnovers: number
+  zscore_fg_pct: number
+  zscore_ft_pct: number
+  zscore_three_pm: number
+  // Pre-calculated z-scores (for backward compatibility and comparison)
   zscore_per_game?: number  // Z-score from per-game stats
   zscore_per_36?: number   // Z-score from per-36 stats
   zscore_total?: number    // Current z-score (for backward compatibility)
@@ -102,7 +113,7 @@ export async function fetchPlayersWithStats(
         return {
           player_id: player.player_id,
           player_name: player.player_name,
-          position: player.position ? player.position.split(',') : ['F'],
+          position: player.position ? player.position.split('|') : ['F'],
           team: stats.team_abbreviation,
           games_played: stats.games_played,
           minutes: getMinutesValue(stats, statsType),
@@ -116,6 +127,17 @@ export async function fetchPlayersWithStats(
           three_pointers_made: getThreePointersMadeValue(stats, statsType),
           three_point_percentage: stats.three_point_percentage || 0,
           free_throw_percentage: stats.free_throw_percentage || 0,
+          // Individual stat z-scores for custom calculation
+          zscore_points: stats.zscore_points || 0,
+          zscore_rebounds: stats.zscore_rebounds || 0,
+          zscore_assists: stats.zscore_assists || 0,
+          zscore_steals: stats.zscore_steals || 0,
+          zscore_blocks: stats.zscore_blocks || 0,
+          zscore_turnovers: stats.zscore_turnovers || 0,
+          zscore_fg_pct: stats.zscore_fg_pct || 0,
+          zscore_ft_pct: stats.zscore_ft_pct || 0,
+          zscore_three_pm: stats.zscore_three_pm || 0,
+          // Pre-calculated z-scores
           zscore_per_game: perGameZScoreMap.get(player.player_id),
           zscore_per_36: per36ZScoreMap.get(player.player_id),
           zscore_total: stats.zscore_total || 0,
