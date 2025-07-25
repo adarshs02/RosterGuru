@@ -9,6 +9,11 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+*.pyc
+*.log
+
+# data
+/data
 
 # testing
 /coverage
@@ -50,3 +55,5 @@ node_modules/
 .git
 
 .github/
+historical_stats/
+data/

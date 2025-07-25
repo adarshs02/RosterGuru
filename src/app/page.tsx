@@ -82,11 +82,11 @@ export default async function Home() {
               
               const cardContent = (
                 <Card className={`hover:shadow-lg transition-shadow ${
-                  isPlayerDatabase ? 'cursor-pointer hover:border-orange-200' : ''
+                  isPlayerDatabase ? 'cursor-pointer hover:border-blue-200' : ''
                 }`}>
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-orange-600">{feature.icon}</div>
+                      <div className="text-blue-600">{feature.icon}</div>
                       <Badge variant="secondary" className="text-xs">
                         {feature.badge}
                       </Badge>
@@ -94,7 +94,7 @@ export default async function Home() {
                     <CardTitle className="text-lg flex items-center gap-2">
                       {feature.title}
                       {isPlayerDatabase && (
-                        <ArrowUpRight className="w-4 h-4 text-orange-600" />
+                        <ArrowUpRight className="w-4 h-4 text-blue-600" />
                       )}
                     </CardTitle>
                   </CardHeader>
@@ -105,7 +105,7 @@ export default async function Home() {
               );
               
               return isPlayerDatabase ? (
-                <Link key={index} href="/players">
+                <Link key={index} href="/playerdatabase">
                   {cardContent}
                 </Link>
               ) : (
@@ -119,28 +119,28 @@ export default async function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-r from-orange-600 to-blue-600 text-white">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">
               Trusted by Fantasy Basketball Enthusiasts
             </h2>
-            <p className="text-orange-100 max-w-2xl mx-auto">
+            <p className="text-blue-100 max-w-2xl mx-auto">
               Join a growing community of data-driven fantasy players
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold mb-2">10+</div>
-              <div className="text-orange-100">Years of NBA Data</div>
+              <div className="text-blue-100">Years of NBA Data</div>
             </div>
             <div>
               <div className="text-4xl font-bold mb-2">500+</div>
-              <div className="text-orange-100">Active Players</div>
+              <div className="text-blue-100">Active Players</div>
             </div>
             <div>
               <div className="text-4xl font-bold mb-2">1000+</div>
-              <div className="text-orange-100">Player Discussions</div>
+              <div className="text-blue-100">Player Discussions</div>
             </div>
           </div>
         </div>
@@ -181,10 +181,10 @@ export default async function Home() {
               },
             ].map((step, index) => (
               <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 text-orange-600 rounded-full mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 text-blue-600 rounded-full mb-6">
                   {step.icon}
                 </div>
-                <div className="text-sm font-semibold text-orange-600 mb-2">
+                <div className="text-sm font-semibold text-blue-600 mb-2">
                   STEP {step.step}
                 </div>
                 <h3 className="text-xl font-semibold mb-4">{step.title}</h3>
@@ -207,7 +207,7 @@ export default async function Home() {
           </p>
           <Link
             href={user ? "/dashboard" : "/sign-up"}
-            className="inline-flex items-center px-8 py-4 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors text-lg font-medium"
+            className="inline-flex items-center px-8 py-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium"
           >
             {user ? "Go to Dashboard" : "Get Started Free"}
             <ArrowUpRight className="ml-2 w-5 h-5" />
