@@ -37,15 +37,15 @@ export interface PlayerStatsForZScore {
 }
 
 export const DEFAULT_MULTIPLIERS: StatMultipliers = {
-  points: 1.0,
+  points: 0.856,
   rebounds: 1.0,
-  assists: 1.0,
-  steals: 1.0,
-  blocks: 1.0,
-  turnovers: -1.0,  // negative because turnovers are bad
-  field_goal_percentage: 0.5,
-  free_throw_percentage: 0.3,
-  three_pointers_made: 0.8
+  assists: 0.94,
+  steals: 1.17,
+  blocks: 1.30,
+  turnovers: -0.5,  // negative because turnovers are bad
+  field_goal_percentage: 1.23,
+  free_throw_percentage: 0.96,
+  three_pointers_made: 1.08
 }
 
 /**

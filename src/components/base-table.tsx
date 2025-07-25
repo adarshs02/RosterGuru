@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Info, RotateCcw, ChevronUp, ChevronDown } from "lucide-react"
+import { Info, RotateCcw, ChevronUp, ChevronDown, Download } from "lucide-react"
 import Spinner from "@/components/ui/spinner"
 import ZScoreMultiplierEditor from './zscore-multiplier-editor'
 import { 
@@ -415,6 +415,14 @@ export default function BaseTable({
               >
                 <RotateCcw className="h-4 w-4" />
                 Reset
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export
               </Button>
             </div>
           )}

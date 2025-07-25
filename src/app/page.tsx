@@ -105,7 +105,7 @@ export default async function Home() {
               );
               
               return isPlayerDatabase ? (
-                <Link key={index} href="/players">
+                <Link key={index} href="/playerdatabase">
                   {cardContent}
                 </Link>
               ) : (

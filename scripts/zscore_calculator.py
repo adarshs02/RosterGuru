@@ -41,7 +41,7 @@ class ZScoreCalculator:
             # Calculate mean and standard deviation from top 30%
             if category in self.negative_categories:
                 # For negative categories, lower is better. "Top" is the bottom 30%.
-                cutoff = values.quantile(0.3)
+                cutoff = values.quantile(0.4)
                 top_performers = values[values <= cutoff]
                 if len(top_performers) > 1:  # Need at least 2 for std dev
                     mean_val = top_performers.mean()
@@ -51,7 +51,7 @@ class ZScoreCalculator:
                     std_val = values.std()    # Fallback to overall std dev
             else:
                 # For positive categories, higher is better. "Top" is the top 30%.
-                cutoff = values.quantile(0.7)
+                cutoff = values.quantile(0.6)
                 top_performers = values[values >= cutoff]
                 if len(top_performers) > 1:  # Need at least 2 for std dev
                     mean_val = top_performers.mean()
