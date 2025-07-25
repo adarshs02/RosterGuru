@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from config import NBA_API_CONFIG, HISTORICAL_CONFIG, LOGGING_CONFIG
 from database import DatabaseManager
 from nba_api_client import NBAApiClient
+from espn_api_client import ESPNFantasyClient
 from zscore_calculator import ZScoreCalculator
 
 # Setup logging
@@ -37,8 +38,10 @@ class NBAStatsCollector:
     
     def __init__(self):
         self.api_client = NBAApiClient()
+        self.espn_client = ESPNFantasyClient()
         self.db = DatabaseManager()
         self.zscore_calc = ZScoreCalculator()
+        self._espn_positions_cache = None
     
     def initialize_database(self):
         """Initialize database connection"""
@@ -49,6 +52,51 @@ class NBAStatsCollector:
             logger.error(f"Failed to initialize database connection: {e}")
             raise
     
+    def get_espn_positions(self) -> Dict[str, List[str]]:
+        """Get ESPN position data and cache it for the session"""
+        if self._espn_positions_cache is None:
+            try:
+                logger.info("Fetching player positions from ESPN API")
+                espn_players = self.espn_client.get_players_with_positions()
+                
+                # Create a mapping of player name to positions
+                self._espn_positions_cache = {}
+                for player in espn_players:
+                    player_name = player['player_name']
+                    positions = player['positions']
+                    if player_name and positions:
+                        self._espn_positions_cache[player_name] = positions
+                
+                logger.info(f"Cached positions for {len(self._espn_positions_cache)} players from ESPN")
+                
+            except Exception as e:
+                logger.warning(f"Failed to fetch ESPN positions: {e}")
+                self._espn_positions_cache = {}
+        
+        return self._espn_positions_cache
+    
+    def enhance_players_with_positions(self, players_data: List[Dict]) -> List[Dict]:
+        """Enhance player data with ESPN positions"""
+        espn_positions = self.get_espn_positions()
+        
+        enhanced_players = []
+        for player in players_data:
+            enhanced_player = player.copy()
+            player_name = player.get('player_name', '')
+            
+            # Try to find positions from ESPN data
+            if player_name in espn_positions:
+                enhanced_player['position'] = espn_positions[player_name]
+                logger.debug(f"Found ESPN positions for {player_name}: {espn_positions[player_name]}")
+            else:
+                # Default position if not found in ESPN
+                enhanced_player['position'] = ['F']  # Default to Forward
+                logger.debug(f"No ESPN position found for {player_name}, using default: F")
+            
+            enhanced_players.append(enhanced_player)
+        
+        return enhanced_players
+    
     def collect_season_data(self, season: str) -> Dict:
         """Collect all stats for a given season using per-game stats as authoritative filter"""
         logger.info(f"Collecting data for season {season}")
@@ -57,6 +105,10 @@ class NBAStatsCollector:
             # Collect player data
             players_data = self.api_client.get_players_list(season)
             logger.info(f"Retrieved {len(players_data)} players")
+            
+            # Enhance player data with ESPN positions
+            enhanced_players = self.enhance_players_with_positions(players_data)
+            logger.info(f"Enhanced {len(enhanced_players)} players with position data")
             
             # Get per-game stats first (this applies our filters)
             per_game_stats = self.api_client.get_player_stats(season)
@@ -77,7 +129,7 @@ class NBAStatsCollector:
             logger.info(f"Filtered stats - Per Game: {len(per_game_stats)}, Per 36: {len(per_36_stats)}, Total: {len(total_stats)}")
             
             return {
-                'players': players_data,
+                'players': enhanced_players,
                 'per_game_stats': per_game_stats,
                 'per_36_stats': per_36_stats,
                 'total_stats': total_stats
@@ -121,11 +173,17 @@ class NBAStatsCollector:
         """Prepare players data for database insertion"""
         players_data = []
         for player in players:
+            # Format positions as comma-separated string if it's a list
+            positions = player.get('position', ['F'])  # Default to Forward if no position
+            if isinstance(positions, list):
+                position_str = ','.join(positions)
+            else:
+                position_str = str(positions)
+            
             player_data = {
                 'nba_player_id': player['nba_player_id'],
                 'player_name': player['player_name'],
-                'team_abbreviation': player.get('team_abbreviation', ''),
-                'position': player.get('position', ''),
+                'position': position_str,  # Store as comma-separated string (e.g., "PG,SG")
                 'years_experience': player.get('years_experience', 0),
                 'is_active': True
             }
@@ -141,12 +199,19 @@ class NBAStatsCollector:
             # Get all players we just inserted/updated
             nba_player_ids = [player['nba_player_id'] for player in players_data]
             
-            result = client.table('players').select('player_id, nba_player_id').in_('nba_player_id', nba_player_ids).execute()
-            
-            # Create mapping from nba_player_id to database player_id
+            # Process in batches to avoid 414 Request-URI Too Large error
+            batch_size = 100  # Process 100 player IDs at a time
             player_id_map = {}
-            for player in result.data:
-                player_id_map[player['nba_player_id']] = player['player_id']
+            
+            for i in range(0, len(nba_player_ids), batch_size):
+                batch_ids = nba_player_ids[i:i + batch_size]
+                logger.debug(f"Processing player ID batch {i//batch_size + 1}/{(len(nba_player_ids) + batch_size - 1)//batch_size}")
+                
+                result = client.table('players').select('player_id, nba_player_id').in_('nba_player_id', batch_ids).execute()
+                
+                # Add to mapping
+                for player in result.data:
+                    player_id_map[player['nba_player_id']] = player['player_id']
             
             logger.info(f"Created player ID mapping for {len(player_id_map)} players")
             return player_id_map

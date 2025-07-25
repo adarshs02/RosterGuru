@@ -12,8 +12,8 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 NBA_API_CONFIG = {
     "season": "2024-25",  # Season to collect data for
     "season_type": "Regular Season",  # Regular Season, Playoffs, All Star
-    "timeout": 10,  # API request timeout in seconds
-    "rate_limit_delay": 0.2,  # Delay between API calls to avoid rate limiting
+    "timeout": 30,  # API request timeout in seconds (increased for historical data)
+    "rate_limit_delay": 0.5,  # Delay between API calls to avoid rate limiting (increased)
 }
 
 # Player filtering criteria

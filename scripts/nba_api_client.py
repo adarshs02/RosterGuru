@@ -61,7 +61,7 @@ class NBAApiClient:
         params = {
             'LeagueID': '00',
             'Season': season,
-            'IsOnlyCurrentSeason': '1'
+            'IsOnlyCurrentSeason': '0'  # Get all players who played in this season, not just currently active
         }
         
         try:
@@ -88,8 +88,78 @@ class NBAApiClient:
             logger.error(f"Failed to get players list: {e}")
             raise
     
+    def get_advanced_stats(self, season: str, per_mode: str = 'PerGame', season_type: str = "Regular Season") -> Dict[int, Dict]:
+        """Get advanced statistics (TS%, US%, etc.) for all players in a season"""
+        endpoint = "leaguedashplayerstats"
+        params = {
+            'College': '',
+            'Conference': '',
+            'Country': '',
+            'DateFrom': '',
+            'DateTo': '',
+            'Division': '',
+            'DraftPick': '',
+            'DraftYear': '',
+            'GameScope': '',
+            'GameSegment': '',
+            'Height': '',
+            'LastNGames': '0',
+            'LeagueID': '00',
+            'Location': '',
+            'MeasureType': 'Advanced',  # Key difference - Advanced stats
+            'Month': '0',
+            'OpponentTeamID': '0',
+            'Outcome': '',
+            'PORound': '0',
+            'PaceAdjust': 'N',
+            'PerMode': per_mode,
+            'Period': '0',
+            'PlayerExperience': '',
+            'PlayerPosition': '',
+            'PlusMinus': 'N',
+            'Rank': 'N',
+            'Season': season,
+            'SeasonSegment': '',
+            'SeasonType': season_type,
+            'ShotClockRange': '',
+            'StarterBench': '',
+            'TeamID': '0',
+            'TwoWay': '0',
+            'VsConference': '',
+            'VsDivision': '',
+            'Weight': ''
+        }
+        
+        try:
+            data = self._make_request(endpoint, params)
+            
+            # Parse the response
+            headers = data['resultSets'][0]['headers']
+            rows = data['resultSets'][0]['rowSet']
+            
+            # Create a mapping of player_id -> advanced stats
+            advanced_stats_map = {}
+            for row in rows:
+                stat_dict = dict(zip(headers, row))
+                player_id = stat_dict.get('PLAYER_ID')
+                
+                advanced_stats_map[player_id] = {
+                    'true_shooting_percentage': stat_dict.get('TS_PCT', 0.0),
+                    'usage_percentage': stat_dict.get('USG_PCT', 0.0)
+                }
+            
+            logger.info(f"Retrieved advanced stats for {len(advanced_stats_map)} players for season {season}")
+            return advanced_stats_map
+            
+        except Exception as e:
+            logger.error(f"Failed to get advanced stats: {e}")
+            return {}
+    
     def get_player_stats(self, season: str, season_type: str = "Regular Season") -> List[Dict]:
-        """Get player statistics for a season"""
+        """Get player statistics for a season with advanced stats merged"""
+        # First, get advanced stats
+        advanced_stats_map = self.get_advanced_stats(season, 'PerGame', season_type)
+        
         endpoint = "leaguedashplayerstats"
         params = {
             'College': '',
@@ -146,8 +216,11 @@ class NBAApiClient:
                     stat_dict.get('MIN', 0.0) < PLAYER_FILTERS['min_minutes_per_game']):
                     continue
                 
+                player_id = stat_dict.get('PLAYER_ID')
+                advanced_stats = advanced_stats_map.get(player_id, {})
+                
                 stats.append({
-                    'nba_player_id': stat_dict.get('PLAYER_ID'),
+                    'nba_player_id': player_id,
                     'player_name': stat_dict.get('PLAYER_NAME', ''),
                     'team_abbreviation': stat_dict.get('TEAM_ABBREVIATION', ''),
                     'games_played': stat_dict.get('GP', 0),
@@ -163,6 +236,8 @@ class NBAApiClient:
                     'free_throws_made': stat_dict.get('FTM', 0.0),
                     'free_throws_attempted': stat_dict.get('FTA', 0.0),
                     'free_throw_percentage': stat_dict.get('FT_PCT', 0.0),
+                    'true_shooting_percentage': advanced_stats.get('true_shooting_percentage', 0.0),
+                    'usage_percentage': advanced_stats.get('usage_percentage', 0.0),
                     'offensive_rebounds': stat_dict.get('OREB', 0.0),
                     'defensive_rebounds': stat_dict.get('DREB', 0.0),
                     'total_rebounds': stat_dict.get('REB', 0.0),
@@ -182,7 +257,10 @@ class NBAApiClient:
             raise
     
     def get_per_36_stats(self, season: str, season_type: str = "Regular Season", apply_filters: bool = True) -> List[Dict]:
-        """Get per-36 minute statistics"""
+        """Get per-36 minute statistics with advanced stats merged"""
+        # First, get advanced stats
+        advanced_stats_map = self.get_advanced_stats(season, 'Per36', season_type)
+        
         endpoint = "leaguedashplayerstats"
         params = {
             'College': '',
@@ -241,9 +319,11 @@ class NBAApiClient:
                 
                 gp = stat_dict.get('GP', 0)
                 min_per_game = stat_dict.get('MIN', 0.0)
+                player_id = stat_dict.get('PLAYER_ID')
+                advanced_stats = advanced_stats_map.get(player_id, {})
                 
                 stats.append({
-                    'nba_player_id': stat_dict.get('PLAYER_ID'),
+                    'nba_player_id': player_id,
                     'player_name': stat_dict.get('PLAYER_NAME', ''),
                     'team_abbreviation': stat_dict.get('TEAM_ABBREVIATION', ''),
                     'games_played': gp,
@@ -258,6 +338,8 @@ class NBAApiClient:
                     'free_throws_made': stat_dict.get('FTM', 0.0),
                     'free_throws_attempted': stat_dict.get('FTA', 0.0),
                     'free_throw_percentage': stat_dict.get('FT_PCT', 0.0),
+                    'true_shooting_percentage': advanced_stats.get('true_shooting_percentage', 0.0),
+                    'usage_percentage': advanced_stats.get('usage_percentage', 0.0),
                     'offensive_rebounds': stat_dict.get('OREB', 0.0),
                     'defensive_rebounds': stat_dict.get('DREB', 0.0),
                     'total_rebounds': stat_dict.get('REB', 0.0),
@@ -276,7 +358,10 @@ class NBAApiClient:
             raise
     
     def get_total_stats(self, season: str, season_type: str = "Regular Season", apply_filters: bool = True) -> List[Dict]:
-        """Get total season statistics"""
+        """Get total season statistics with advanced stats merged"""
+        # First, get advanced stats
+        advanced_stats_map = self.get_advanced_stats(season, 'Totals', season_type)
+        
         endpoint = "leaguedashplayerstats"
         params = {
             'College': '',
@@ -337,8 +422,11 @@ class NBAApiClient:
                     min_per_game < PLAYER_FILTERS['min_minutes_per_game']):
                     continue
             
+                player_id = stat_dict.get('PLAYER_ID')
+                advanced_stats = advanced_stats_map.get(player_id, {})
+            
                 stats.append({
-                    'nba_player_id': stat_dict.get('PLAYER_ID'),
+                    'nba_player_id': player_id,
                     'player_name': stat_dict.get('PLAYER_NAME', ''),
                     'team_abbreviation': stat_dict.get('TEAM_ABBREVIATION', ''),
                     'games_played': gp,
@@ -354,6 +442,8 @@ class NBAApiClient:
                     'total_free_throws_made': int(stat_dict.get('FTM', 0)),
                     'total_free_throws_attempted': int(stat_dict.get('FTA', 0)),
                     'free_throw_percentage': stat_dict.get('FT_PCT', 0.0),  # Decimal for percentages
+                    'true_shooting_percentage': advanced_stats.get('true_shooting_percentage', 0.0),
+                    'usage_percentage': advanced_stats.get('usage_percentage', 0.0),
                     'total_offensive_rebounds': int(stat_dict.get('OREB', 0)),
                     'total_defensive_rebounds': int(stat_dict.get('DREB', 0)),
                     'total_rebounds': int(stat_dict.get('REB', 0)),

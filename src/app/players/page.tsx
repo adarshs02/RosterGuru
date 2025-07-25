@@ -1,13 +1,52 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import BaseTable from "@/components/base-table";
 import Navbar from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Download, RefreshCw } from "lucide-react";
+import { Search, Filter, Download, RefreshCw, Calendar, BarChart3 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Available seasons for the year selector
+const AVAILABLE_SEASONS = [
+  "2024-25", "2023-24", "2022-23", "2021-22", "2020-21",
+  "2019-20", "2018-19", "2017-18", "2016-17", "2015-16"
+];
+
+// Stats type options
+type StatsType = "per_game" | "per_36" | "total";
 
 export default function PlayersPage() {
+  const [selectedSeason, setSelectedSeason] = useState<string>("2024-25");
+  const [statsType, setStatsType] = useState<StatsType>("per_game");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Get display text for stats type
+  const getStatsTypeDisplay = (type: StatsType) => {
+    switch (type) {
+      case "per_game": return "Per Game";
+      case "per_36": return "Per 36 Min";
+      case "total": return "Total Stats";
+    }
+  };
+
+  // Stats type labels mapping
+  const statsTypeLabels = {
+    "per_game": "Per Game",
+    "per_36": "Per 36 Min", 
+    "total": "Total Stats"
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       <Navbar />
@@ -39,7 +78,47 @@ export default function PlayersPage() {
         </div>
       </section>
 
-      {/* Filters and Search Section */}
+      {/* Year Selector and Stats Toggle */}
+      <section className="bg-white border-b">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Year Selector */}
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700 min-w-fit">Season:</span>
+              <Select value={selectedSeason} onValueChange={setSelectedSeason}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Select season">{selectedSeason}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_SEASONS.map((season) => (
+                    <SelectItem key={season} value={season}>
+                      {season}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Debug info */}
+              <span className="text-xs text-gray-500">({AVAILABLE_SEASONS.length} seasons available)</span>
+            </div>
+
+            {/* Stats Type Toggle */}
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-5 h-5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700 min-w-fit">Stats:</span>
+              <Tabs value={statsType} onValueChange={(value) => setStatsType(value as StatsType)} className="w-auto">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="per_game" className="text-xs px-3">Per Game</TabsTrigger>
+                  <TabsTrigger value="per_36" className="text-xs px-3">Per 36</TabsTrigger>
+                  <TabsTrigger value="total" className="text-xs px-3">Total</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Search and Filters Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -49,6 +128,8 @@ export default function PlayersPage() {
               <Input
                 placeholder="Search players by name, team, or position..."
                 className="pl-10 pr-4 py-2"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
@@ -62,7 +143,7 @@ export default function PlayersPage() {
                 <Filter className="w-4 h-4 mr-2" />
                 Team
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
@@ -133,11 +214,13 @@ export default function PlayersPage() {
       {/* Player Table */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
-          <BaseTable
-            title="2024-25 NBA Player Rankings"
-            showRankings={true}
+          <BaseTable 
+            title={`${selectedSeason} ${statsTypeLabels[statsType]} Stats`}
             showZScore={true}
-            className="shadow-lg"
+            className="w-full"
+            season={selectedSeason}
+            statsType={statsType}
+            searchTerm={searchTerm}
           />
           
           {/* Pagination */}
