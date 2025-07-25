@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import BaseTable from "@/components/base-table";
-import Navbar from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Download, RefreshCw, Calendar, BarChart3 } from "lucide-react";
+import {
+  Search,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  MessageSquare,
+  Target,
+  User,
+  Calendar,
+  BarChart3,
+  Eye,
+  Users,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -15,330 +25,721 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchPlayersWithStats, PlayerData } from '@/lib/playerData';
-import CircleSpinner from "@/components/ui/circle-spinner";
-import { calculateCustomZScore, DEFAULT_MULTIPLIERS, PlayerStatsForZScore } from '@/lib/zscoreCalculator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { fetchPlayersWithStats, PlayerData } from "@/lib/playerData";
+import Spinner from "@/components/ui/spinner";
+import Link from "next/link";
 
-// Available seasons for the year selector
-const AVAILABLE_SEASONS = [
-  "2024-25", "2023-24", "2022-23", "2021-22", "2020-21",
-  "2019-20", "2018-19", "2017-18", "2016-17", "2015-16"
+// Mock popular players data
+const POPULAR_PLAYERS = [
+  {
+    id: "1",
+    name: "Nikola Jokić",
+    team: "DEN",
+    position: ["C"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=jokic",
+    points: 26.4,
+    rebounds: 12.4,
+    assists: 9.0,
+    zscore: 2.8,
+    trending: "up",
+    discussions: 47,
+    projections: 23,
+  },
+  {
+    id: "2",
+    name: "Luka Dončić",
+    team: "DAL",
+    position: ["PG", "SG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=luka",
+    points: 32.4,
+    rebounds: 8.2,
+    assists: 9.1,
+    zscore: 2.6,
+    trending: "up",
+    discussions: 52,
+    projections: 31,
+  },
+  {
+    id: "3",
+    name: "Giannis Antetokounmpo",
+    team: "MIL",
+    position: ["PF", "C"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=giannis",
+    points: 30.4,
+    rebounds: 11.5,
+    assists: 6.5,
+    zscore: 2.5,
+    trending: "stable",
+    discussions: 38,
+    projections: 19,
+  },
+  {
+    id: "4",
+    name: "Jayson Tatum",
+    team: "BOS",
+    position: ["SF", "PF"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=tatum",
+    points: 26.9,
+    rebounds: 8.1,
+    assists: 4.9,
+    zscore: 2.1,
+    trending: "down",
+    discussions: 29,
+    projections: 15,
+  },
+  {
+    id: "5",
+    name: "Shai Gilgeous-Alexander",
+    team: "OKC",
+    position: ["PG", "SG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=shai",
+    points: 30.1,
+    rebounds: 5.5,
+    assists: 6.2,
+    zscore: 2.3,
+    trending: "up",
+    discussions: 34,
+    projections: 22,
+  },
+  {
+    id: "6",
+    name: "Anthony Davis",
+    team: "LAL",
+    position: ["PF", "C"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=ad",
+    points: 24.7,
+    rebounds: 12.6,
+    assists: 3.5,
+    zscore: 2.0,
+    trending: "up",
+    discussions: 25,
+    projections: 18,
+  },
 ];
 
-// Stats type options
-type StatsType = "per_game" | "per_36" | "total";
+// Mock player profile data
+const getPlayerProfile = (playerId: string) => {
+  const player = POPULAR_PLAYERS.find((p) => p.id === playerId);
+  if (!player) return null;
 
-// Type for player with custom z-score
-type PlayerWithCustomZScore = PlayerData & { customZScore: number };
+  return {
+    ...player,
+    jersey: "15",
+    height: "6'11\"",
+    weight: "284 lbs",
+    age: 29,
+    experience: "9 years",
+    seasonHistory: [
+      {
+        season: "2024-25",
+        games: 45,
+        points: 26.4,
+        rebounds: 12.4,
+        assists: 9.0,
+        zscore: 2.8,
+      },
+      {
+        season: "2023-24",
+        games: 79,
+        points: 26.4,
+        rebounds: 12.4,
+        assists: 9.0,
+        zscore: 2.8,
+      },
+      {
+        season: "2022-23",
+        games: 69,
+        points: 24.5,
+        rebounds: 11.8,
+        assists: 9.8,
+        zscore: 2.6,
+      },
+      {
+        season: "2021-22",
+        games: 74,
+        points: 27.1,
+        rebounds: 13.8,
+        assists: 7.9,
+        zscore: 2.9,
+      },
+    ],
+    discussions: [
+      {
+        id: 1,
+        title: "Is Jokić the best center in fantasy?",
+        replies: 23,
+        views: 1203,
+        author: "FantasyGuru23",
+        time: "2h ago",
+      },
+      {
+        id: 2,
+        title: "Jokić triple-double streak analysis",
+        replies: 15,
+        views: 856,
+        author: "StatMaster",
+        time: "4h ago",
+      },
+      {
+        id: 3,
+        title: "Denver's playoff push impact on Jokić",
+        replies: 31,
+        views: 967,
+        author: "NuggetsFan",
+        time: "6h ago",
+      },
+    ],
+    projections: [
+      {
+        id: 1,
+        author: "ProAnalyst",
+        points: 26.8,
+        rebounds: 12.1,
+        assists: 9.2,
+        accuracy: 94,
+        date: "2024-01-15",
+      },
+      {
+        id: 2,
+        author: "FantasyExpert",
+        points: 25.9,
+        rebounds: 12.8,
+        assists: 8.7,
+        accuracy: 89,
+        date: "2024-01-14",
+      },
+      {
+        id: 3,
+        author: "StatWizard",
+        points: 27.2,
+        rebounds: 11.9,
+        assists: 9.5,
+        accuracy: 92,
+        date: "2024-01-13",
+      },
+    ],
+  };
+};
+
+// Position color mapping
+const getPositionColor = (position: string): string => {
+  const colors = {
+    PG: "bg-blue-500 text-white",
+    SG: "bg-green-500 text-white",
+    SF: "bg-yellow-500 text-white",
+    PF: "bg-indigo-500 text-white",
+    C: "bg-purple-500 text-white",
+  };
+  return colors[position as keyof typeof colors] || "bg-gray-500 text-white";
+};
 
 export default function PlayersPage() {
-  const [selectedSeason, setSelectedSeason] = useState<string>("2024-25");
-  const [statsType, setStatsType] = useState<StatsType>("per_game");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [topPlayer, setTopPlayer] = useState<PlayerWithCustomZScore | null>(null);
-  const [topPlayerLoading, setTopPlayerLoading] = useState(true);
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  const [filteredPlayers, setFilteredPlayers] = useState(POPULAR_PLAYERS);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch top z-score player
+  // Filter players based on search term
   useEffect(() => {
-    const fetchTopPlayer = async () => {
-      try {
-        setTopPlayerLoading(true);
-        const players = await fetchPlayersWithStats(selectedSeason, statsType);
-        
-        // Filter players with valid z-score data and calculate custom z-scores
-        const playersWithZScores = players.filter(p => 
-          p.zscore_points !== undefined && !isNaN(p.zscore_points)
-        );
-        
-        if (playersWithZScores.length > 0) {
-          // Calculate custom z-scores for each player
-          const playersWithCustomZScores = playersWithZScores.map(player => {
-            // Convert PlayerData to PlayerStatsForZScore for the calculation
-            const playerForZScore: PlayerStatsForZScore = {
-              player_id: player.player_id.toString(),
-              player_name: player.player_name,
-              points: player.points,
-              rebounds: player.rebounds,
-              assists: player.assists,
-              steals: player.steals,
-              blocks: player.blocks,
-              turnovers: player.turnovers,
-              field_goal_percentage: player.field_goal_percentage,
-              free_throw_percentage: player.free_throw_percentage,
-              three_pointers_made: player.three_pointers_made,
-              zscore_points: player.zscore_points,
-              zscore_rebounds: player.zscore_rebounds,
-              zscore_assists: player.zscore_assists,
-              zscore_steals: player.zscore_steals,
-              zscore_blocks: player.zscore_blocks,
-              zscore_turnovers: player.zscore_turnovers,
-              zscore_fg_pct: player.zscore_fg_pct,
-              zscore_ft_pct: player.zscore_ft_pct,
-              zscore_three_pm: player.zscore_three_pm
-            };
-            
-            return {
-              ...player,
-              customZScore: calculateCustomZScore(playerForZScore, DEFAULT_MULTIPLIERS)
-            };
-          });
-          
-          // Sort by custom z-score descending and get the top player
-          const sortedPlayers = playersWithCustomZScores.sort((a, b) => 
-            b.customZScore - a.customZScore
-          );
-          setTopPlayer(sortedPlayers[0]);
-        } else {
-          setTopPlayer(null);
-        }
-      } catch (error) {
-        console.error('Error fetching top player:', error);
-        setTopPlayer(null);
-      } finally {
-        setTopPlayerLoading(false);
-      }
-    };
-
-    // Only fetch for per_game and per_36 (total stats don't have z-scores)
-    if (statsType !== 'total') {
-      fetchTopPlayer();
+    if (!searchTerm) {
+      setFilteredPlayers(POPULAR_PLAYERS);
     } else {
-      setTopPlayer(null);
-      setTopPlayerLoading(false);
+      const filtered = POPULAR_PLAYERS.filter(
+        (player) =>
+          player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          player.team.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          player.position.some((pos) =>
+            pos.toLowerCase().includes(searchTerm.toLowerCase()),
+          ),
+      );
+      setFilteredPlayers(filtered);
     }
-  }, [selectedSeason, statsType]);
+  }, [searchTerm]);
 
-  // Get display text for stats type
-  const getStatsTypeDisplay = (type: StatsType) => {
-    switch (type) {
-      case "per_game": return "Per Game";
-      case "per_36": return "Per 36 Min";
-      case "total": return "Total Stats";
-    }
-  };
-
-  // Stats type labels mapping
-  const statsTypeLabels = {
-    "per_game": "Per Game",
-    "per_36": "Per 36 Min", 
-    "total": "Total Stats"
-  };
+  const playerProfile = selectedPlayer
+    ? getPlayerProfile(selectedPlayer)
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <Navbar />
       {/* Header Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Player Database
+                Player Profiles
               </h1>
               <p className="text-gray-600 max-w-2xl">
-                Comprehensive NBA player statistics with historical data, z-scores, and advanced metrics. 
-                Explore 10+ years of player performance data to make informed fantasy decisions.
+                Search and explore detailed NBA player profiles with stats,
+                discussions, and community projections.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Badge variant="outline" className="text-sm">
-                10+ Years Data
+                <Star className="w-3 h-3 mr-1" />
+                Popular Players
+              </Badge>
+              <Badge variant="outline" className="text-sm">
+                <MessageSquare className="w-3 h-3 mr-1" />
+                Community Discussions
+              </Badge>
+              <Badge variant="outline" className="text-sm">
+                <Target className="w-3 h-3 mr-1" />
+                Expert Projections
               </Badge>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Year Selector and Stats Toggle */}
+      {/* Search Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Year Selector */}
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700 min-w-fit">Season:</span>
-              <Select value={selectedSeason} onValueChange={setSelectedSeason}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Select season">{selectedSeason}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_SEASONS.map((season) => (
-                    <SelectItem key={season} value={season}>
-                      {season}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* Debug info */}
-              <span className="text-xs text-gray-500">({AVAILABLE_SEASONS.length} seasons available)</span>
-            </div>
-
-            {/* Stats Type Toggle */}
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700 min-w-fit">Stats:</span>
-              <Tabs value={statsType} onValueChange={(value) => setStatsType(value as StatsType)} className="w-auto">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="per_game" className="text-xs px-3">Per Game</TabsTrigger>
-                  <TabsTrigger value="per_36" className="text-xs px-3">Per 36</TabsTrigger>
-                  <TabsTrigger value="total" className="text-xs px-3">Total</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+          <div className="relative max-w-2xl mx-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Input
+              placeholder="Search for NBA players by name, team, or position..."
+              className="pl-12 pr-4 py-3 text-lg"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
       </section>
 
-      {/* Search and Filters Section */}
-      <section className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search players by name, team, or position..."
-                className="pl-10 pr-4 py-2"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            {/* Filter Buttons */}
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Position
-              </Button>
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Team
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reset
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Overview Cards */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Popular Players Sidebar */}
+          <div className="lg:col-span-1">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Total Players
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {searchTerm
+                    ? `Search Results (${filteredPlayers.length})`
+                    : "Popular Players"}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900">487</div>
-                <p className="text-xs text-gray-500 mt-1">Active this season</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Average PPG
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900">11.2</div>
-                <p className="text-xs text-gray-500 mt-1">League average</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Top Z-Score
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {topPlayerLoading ? (
-                  <div className="flex items-center justify-center py-2">
-                    <CircleSpinner size="sm" />
+              <CardContent className="space-y-3">
+                {filteredPlayers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No players found matching your search.</p>
                   </div>
-                ) : statsType === 'total' ? (
-                  <>
-                    <div className="text-2xl font-bold text-gray-400">N/A</div>
-                    <p className="text-xs text-gray-500 mt-1">No z-scores for totals</p>
-                  </>
-                ) : topPlayer ? (
-                  <>
-                    <div className={`text-2xl font-bold ${
-                      (topPlayer.customZScore || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {(topPlayer.customZScore || 0) >= 0 ? '+' : ''}{(topPlayer.customZScore || 0).toFixed(1)}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{topPlayer.player_name}</p>
-                  </>
                 ) : (
-                  <>
-                    <div className="text-2xl font-bold text-gray-400">--</div>
-                    <p className="text-xs text-gray-500 mt-1">No data available</p>
-                  </>
+                  filteredPlayers.map((player) => (
+                    <div
+                      key={player.id}
+                      className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                        selectedPlayer === player.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedPlayer(player.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={player.image}
+                          alt={player.name}
+                          className="w-12 h-12 rounded-full bg-gray-100"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-sm truncate">
+                              {player.name}
+                            </h3>
+                            {player.trending === "up" && (
+                              <TrendingUp className="w-3 h-3 text-green-500" />
+                            )}
+                            {player.trending === "down" && (
+                              <TrendingDown className="w-3 h-3 text-red-500" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs">
+                              {player.team}
+                            </Badge>
+                            <div className="flex gap-1">
+                              {player.position.map((pos, idx) => (
+                                <Badge
+                                  key={idx}
+                                  className={`text-xs ${getPositionColor(pos)}`}
+                                >
+                                  {pos}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {player.points} PTS • {player.rebounds} REB •{" "}
+                            {player.assists} AST
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span
+                              className={`text-xs font-medium ${
+                                player.zscore >= 2.0
+                                  ? "text-green-600"
+                                  : player.zscore >= 1.0
+                                    ? "text-blue-600"
+                                    : "text-gray-600"
+                              }`}
+                            >
+                              Z-Score: +{player.zscore}
+                            </span>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" />
+                                {player.discussions}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Target className="w-3 h-3" />
+                                {player.projections}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 )}
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Last Updated
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900">2h</div>
-                <p className="text-xs text-gray-500 mt-1">ago</p>
-              </CardContent>
-            </Card>
           </div>
-        </div>
-      </section>
 
-      {/* Player Table */}
-      <section className="pb-12">
-        <div className="container mx-auto px-4">
-          <BaseTable 
-            title={`${selectedSeason} ${statsTypeLabels[statsType]} Stats`}
-            showZScore={true}
-            className="w-full"
-            season={selectedSeason}
-            statsType={statsType}
-            searchTerm={searchTerm}
-          />
-          
-          {/* Pagination */}
-          <div className="flex justify-center mt-8">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="default" size="sm">
-                1
-              </Button>
-              <Button variant="outline" size="sm">
-                2
-              </Button>
-              <Button variant="outline" size="sm">
-                3
-              </Button>
-              <Button variant="outline" size="sm">
-                Next
-              </Button>
-            </div>
+          {/* Player Profile Main Content */}
+          <div className="lg:col-span-2">
+            {!selectedPlayer ? (
+              <Card className="h-96">
+                <CardContent className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <User className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                      Select a Player
+                    </h3>
+                    <p className="text-gray-500">
+                      Choose a player from the list to view their detailed
+                      profile, stats, and community discussions.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : playerProfile ? (
+              <div className="space-y-6">
+                {/* Player Header */}
+                <Card>
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white rounded-t-xl">
+                    <div className="flex items-center gap-6">
+                      <img
+                        src={playerProfile.image}
+                        alt={playerProfile.name}
+                        className="w-20 h-20 rounded-full bg-white/20 p-2"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h1 className="text-2xl font-bold">
+                            {playerProfile.name}
+                          </h1>
+                          <Badge className="bg-white/20 text-white border-white/30">
+                            #{playerProfile.jersey}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-white/90 text-sm">
+                          <span>{playerProfile.team}</span>
+                          <span>•</span>
+                          <span>{playerProfile.position.join("/")}</span>
+                          <span>•</span>
+                          <span>
+                            {playerProfile.height}, {playerProfile.weight}
+                          </span>
+                          <span>•</span>
+                          <span>Age {playerProfile.age}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold mb-1">
+                          +{playerProfile.zscore}
+                        </div>
+                        <div className="text-white/80 text-sm">Z-Score</div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Current Season Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        Points
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold">
+                        {playerProfile.points}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-green-600">
+                        <TrendingUp className="w-3 h-3" />
+                        +2.1 vs last season
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        Rebounds
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold">
+                        {playerProfile.rebounds}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-green-600">
+                        <TrendingUp className="w-3 h-3" />
+                        +0.6 vs last season
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        Assists
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold">
+                        {playerProfile.assists}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-red-600">
+                        <TrendingDown className="w-3 h-3" />
+                        -0.8 vs last season
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        Discussions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold">
+                        {playerProfile.discussions.length}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        Active threads
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Tabs for Stats, Discussions, Projections */}
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="overview">Season History</TabsTrigger>
+                    <TabsTrigger value="discussions">Discussions</TabsTrigger>
+                    <TabsTrigger value="projections">Projections</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="overview" className="mt-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Last 4 Seasons Performance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Season</TableHead>
+                                <TableHead className="text-center">
+                                  GP
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  PTS
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  REB
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  AST
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  Z-Score
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {playerProfile.seasonHistory.map(
+                                (season, index) => (
+                                  <TableRow key={index}>
+                                    <TableCell className="font-medium">
+                                      {season.season}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {season.games}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {season.points}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {season.rebounds}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {season.assists}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <span
+                                        className={`font-semibold ${
+                                          season.zscore >= 2.0
+                                            ? "text-green-600"
+                                            : season.zscore >= 1.0
+                                              ? "text-blue-600"
+                                              : "text-gray-600"
+                                        }`}
+                                      >
+                                        +{season.zscore}
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>
+                                ),
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="discussions" className="mt-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MessageSquare className="w-5 h-5" />
+                          Community Discussions
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {playerProfile.discussions.map((discussion) => (
+                            <div
+                              key={discussion.id}
+                              className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                              <h4 className="font-medium mb-2">
+                                {discussion.title}
+                              </h4>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <MessageSquare className="w-4 h-4" />
+                                  {discussion.replies} replies
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Eye className="w-4 h-4" />
+                                  {discussion.views} views
+                                </span>
+                                <span>by {discussion.author}</span>
+                                <span>•</span>
+                                <span>{discussion.time}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="projections" className="mt-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Target className="w-5 h-5" />
+                          Community Projections
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Analyst</TableHead>
+                                <TableHead className="text-center">
+                                  PTS
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  REB
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  AST
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  Accuracy
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  Date
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {playerProfile.projections.map((projection) => (
+                                <TableRow key={projection.id}>
+                                  <TableCell className="font-medium">
+                                    {projection.author}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {projection.points}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {projection.rebounds}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {projection.assists}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <span
+                                      className={`font-medium ${
+                                        projection.accuracy >= 90
+                                          ? "text-green-600"
+                                          : projection.accuracy >= 80
+                                            ? "text-blue-600"
+                                            : "text-gray-600"
+                                      }`}
+                                    >
+                                      {projection.accuracy}%
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-center text-sm text-gray-600">
+                                    {projection.date}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            ) : (
+              <Card className="h-96">
+                <CardContent className="flex items-center justify-center h-full">
+                  <Spinner size="lg" />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
