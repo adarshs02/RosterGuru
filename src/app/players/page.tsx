@@ -394,6 +394,7 @@ export default function PlayersPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [watchList, setWatchList] = useState<string[]>([]);
   const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist">("popular");
+  const [selectedPositions, setSelectedPositions] = useState<string[]>(["PG", "SG", "SF", "PF", "C"]);
 
   // Toggle watch list
   const toggleWatchList = (playerId: string) => {
@@ -418,13 +419,30 @@ export default function PlayersPage() {
     setSearchTerm('');
   };
 
-  // Filter players based on search term with name normalization
+  // Toggle position filter
+  const togglePosition = (position: string) => {
+    setSelectedPositions(prev => 
+      prev.includes(position)
+        ? prev.filter(pos => pos !== position)
+        : [...prev, position]
+    );
+  };
+
+  // Filter players based on search term and position filters
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredPlayers(POPULAR_PLAYERS);
-    } else {
+    let filtered = POPULAR_PLAYERS;
+
+    // Apply position filter
+    if (selectedPositions.length > 0 && selectedPositions.length < 5) {
+      filtered = filtered.filter(player =>
+        player.position.some(pos => selectedPositions.includes(pos))
+      );
+    }
+
+    // Apply search filter
+    if (searchTerm) {
       const normalizedSearchTerm = normalizeText(searchTerm);
-      const filtered = POPULAR_PLAYERS.filter(
+      filtered = filtered.filter(
         (player) =>
           normalizeText(player.name).includes(normalizedSearchTerm) ||
           normalizeText(player.team).includes(normalizedSearchTerm) ||
@@ -432,9 +450,10 @@ export default function PlayersPage() {
             normalizeText(pos).includes(normalizedSearchTerm)
           )
       );
-      setFilteredPlayers(filtered);
     }
-  }, [searchTerm]);
+
+    setFilteredPlayers(filtered);
+  }, [searchTerm, selectedPositions]);
 
   const playerProfile = selectedPlayer
     ? getPlayerProfile(selectedPlayer)
@@ -459,7 +478,7 @@ export default function PlayersPage() {
             <div className="flex flex-wrap gap-3">
               <Badge variant="outline" className="text-sm">
                 <Star className="w-3 h-3 mr-1" />
-                Popular Players
+                Player Tracking
               </Badge>
               <Badge variant="outline" className="text-sm">
                 <MessageSquare className="w-3 h-3 mr-1" />
@@ -477,23 +496,62 @@ export default function PlayersPage() {
       {/* Search Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
-          <div className="relative max-w-2xl mx-auto">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
-              placeholder="Search for NBA players by name, team, or position..."
-              className="pl-12 pr-12 py-3 text-lg"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative max-w-2xl mx-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Input
+                placeholder="Search for NBA players by name, team, or position..."
+                className="pl-12 pr-12 py-3 text-lg"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            
+            {/* Position Filters */}
+            <div className="flex justify-center">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-600 mr-2">Filter by Position:</span>
+                {["PG", "SG", "SF", "PF", "C"].map((position) => (
+                  <button
+                    key={position}
+                    onClick={() => togglePosition(position)}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      selectedPositions.includes(position)
+                        ? `${getPositionColor(position)} border`
+                        : "bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+                    }`}
+                  >
+                    {position}
+                  </button>
+                ))}
+                {selectedPositions.length < 5 && (
+                  <button
+                    onClick={() => setSelectedPositions(["PG", "SG", "SF", "PF", "C"])}
+                    className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-600 border border-blue-200 hover:bg-blue-200 transition-colors ml-2"
+                  >
+                    Select All
+                  </button>
+                )}
+                {selectedPositions.length === 5 && (
+                  <button
+                    onClick={() => setSelectedPositions([])}
+                    className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 transition-colors ml-2"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -773,7 +831,7 @@ export default function PlayersPage() {
                         <Link href={`/players/${selectedPlayer}`}>
                           <Button className="bg-white/20 hover:bg-white/30 text-white border-white/30">
                             <Eye className="w-4 h-4 mr-2" />
-                            View Full Profile
+                            View Player Profile
                           </Button>
                         </Link>
                       </div>

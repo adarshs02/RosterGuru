@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS players (
     player_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nba_player_id INTEGER UNIQUE NOT NULL,
+    espn_player_id INTEGER UNIQUE NOT NULL,
     player_name VARCHAR(255) NOT NULL,
     position VARCHAR(50), -- Can store multiple positions like "PG,SG" or "SF,PF"
     years_experience INTEGER,

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { usePlayerWatchStatus, useAuth } from "@/lib/hooks/useWatchList";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +20,7 @@ import {
   User,
   Trophy,
   Star,
+  Bookmark,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -28,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Link from "next/link";
 
 // Mock data structure for player profile (in real app, this would come from API)
 interface PlayerSeasonStats {
@@ -215,10 +217,41 @@ function getPositionColor(position: string): string {
 
 export default function PlayerProfilePage() {
   const params = useParams();
-  const playerId = params.id as string;
   const [activeTab, setActiveTab] = useState("overview");
   
+  const playerId = params.id as string;
   const player = PLAYER_PROFILES[playerId];
+  
+  // Use Supabase-based watch list
+  const { user, isAuthenticated } = useAuth();
+  const { 
+    isInWatchList, 
+    isLoading: watchLoading, 
+    error: watchError, 
+    toggle 
+  } = usePlayerWatchStatus(playerId);
+  
+  // Handle watch list toggle
+  const handleToggleWatch = async () => {
+    if (!isAuthenticated) {
+      alert('Please sign in to add players to your watch list!');
+      return;
+    }
+    
+    if (!player) return;
+    
+    try {
+      await toggle({
+        player_id: player.id,
+        player_name: player.name,
+        player_team: player.team,
+        player_position: player.position,
+      });
+    } catch (error) {
+      console.error('Error toggling watch list:', error);
+      alert('Failed to update watch list. Please try again.');
+    }
+  };
 
   if (!player) {
     return (
@@ -231,7 +264,7 @@ export default function PlayerProfilePage() {
           <Link href="/players">
             <Button className="bg-blue-600 hover:bg-blue-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Players
+              Player Profiles
             </Button>
           </Link>
         </div>
@@ -245,11 +278,11 @@ export default function PlayerProfilePage() {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-10">
         <div className="container mx-auto px-4">
           <Link href="/players" className="inline-flex items-center text-blue-100 hover:text-white mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Players
+            Player Profiles
           </Link>
           
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
@@ -261,7 +294,23 @@ export default function PlayerProfilePage() {
                 className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-white/10 border-4 border-white/20"
               />
               <div>
-                <h1 className="text-4xl lg:text-5xl font-bold mb-2">{player.name}</h1>
+                <div className="flex items-center gap-4 mb-2">
+                  <h1 className="text-4xl lg:text-5xl font-bold">{player.name}</h1>
+                  <button
+                    onClick={handleToggleWatch}
+                    disabled={watchLoading}
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors border border-white/20 disabled:opacity-50"
+                    title={isInWatchList ? "Remove from Watch List" : "Add to Watch List"}
+                  >
+                    <Bookmark 
+                      className={`w-6 h-6 transition-colors ${
+                        isInWatchList 
+                          ? 'text-yellow-300 fill-yellow-300' 
+                          : 'text-white'
+                      }`} 
+                    />
+                  </button>
+                </div>
                 <div className="flex items-center gap-3 mb-4">
                   <Badge variant="outline" className="bg-white/10 text-white border-white/30">
                     #{player.jersey} • {player.team}
@@ -318,48 +367,50 @@ export default function PlayerProfilePage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stats">Season Stats</TabsTrigger>
-            <TabsTrigger value="highlights">Career Highlights</TabsTrigger>
+            <TabsTrigger value="gamelogs">Game Logs</TabsTrigger>
             <TabsTrigger value="community">Community</TabsTrigger>
+            <TabsTrigger value="highlights">Career Highlights</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             <div className="grid lg:grid-cols-3 gap-6">
-              {/* Career Stats Summary */}
+              {/* Last Season Stats */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-blue-600" />
-                    Career Overview
+                    Last Season Stats
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">{player.seasonHistory.length}</div>
-                      <div className="text-sm text-gray-600">Seasons</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        {player.seasonHistory.reduce((acc, season) => acc + season.games, 0)}
-                      </div>
-                      <div className="text-sm text-gray-600">Games</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        {(player.seasonHistory.reduce((acc, season) => acc + season.points, 0) / player.seasonHistory.length).toFixed(1)}
-                      </div>
-                      <div className="text-sm text-gray-600">Avg PPG</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        {(player.seasonHistory.reduce((acc, season) => acc + season.zscore, 0) / player.seasonHistory.length).toFixed(1)}
-                      </div>
-                      <div className="text-sm text-gray-600">Avg Z-Score</div>
-                    </div>
+                    {(() => {
+                      const lastSeason = player.seasonHistory[player.seasonHistory.length - 1];
+                      return (
+                        <>
+                          <div className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-gray-900">{lastSeason.points.toFixed(1)}</div>
+                            <div className="text-sm text-gray-600">PPG</div>
+                          </div>
+                          <div className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-gray-900">{lastSeason.rebounds.toFixed(1)}</div>
+                            <div className="text-sm text-gray-600">RPG</div>
+                          </div>
+                          <div className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-gray-900">{lastSeason.assists.toFixed(1)}</div>
+                            <div className="text-sm text-gray-600">APG</div>
+                          </div>
+                          <div className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold text-gray-900">{lastSeason.zscore.toFixed(1)}</div>
+                            <div className="text-sm text-gray-600">Z-Score</div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -553,6 +604,76 @@ export default function PlayerProfilePage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Game Logs Tab */}
+          <TabsContent value="gamelogs" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  Recent Game Logs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left p-3 font-medium text-gray-700">Date</th>
+                        <th className="text-left p-3 font-medium text-gray-700">Opponent</th>
+                        <th className="text-left p-3 font-medium text-gray-700">Result</th>
+                        <th className="text-center p-3 font-medium text-gray-700">MIN</th>
+                        <th className="text-center p-3 font-medium text-gray-700">PTS</th>
+                        <th className="text-center p-3 font-medium text-gray-700">REB</th>
+                        <th className="text-center p-3 font-medium text-gray-700">AST</th>
+                        <th className="text-center p-3 font-medium text-gray-700">FG%</th>
+                        <th className="text-center p-3 font-medium text-gray-700">3P%</th>
+                        <th className="text-center p-3 font-medium text-gray-700">FT%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { date: "Jan 22", opponent: "vs LAL", result: "W 118-108", min: 38, pts: 28, reb: 4, ast: 11, fg: 65.2, tp: 42.9, ft: 90.0 },
+                        { date: "Jan 19", opponent: "@ BOS", result: "L 102-125", min: 35, pts: 22, reb: 3, ast: 8, fg: 45.8, tp: 33.3, ft: 100.0 },
+                        { date: "Jan 17", opponent: "vs MIA", result: "W 129-121", min: 41, pts: 35, reb: 5, ast: 13, fg: 58.3, tp: 50.0, ft: 87.5 },
+                        { date: "Jan 14", opponent: "@ PHI", result: "W 106-104", min: 37, pts: 24, reb: 6, ast: 9, fg: 52.2, tp: 40.0, ft: 85.7 },
+                        { date: "Jan 12", opponent: "vs NYK", result: "L 115-119", min: 39, pts: 31, reb: 2, ast: 10, fg: 48.9, tp: 36.4, ft: 92.3 },
+                        { date: "Jan 9", opponent: "@ MIL", result: "W 127-110", min: 36, pts: 26, reb: 7, ast: 12, fg: 61.9, tp: 45.5, ft: 88.9 },
+                        { date: "Jan 7", opponent: "vs CHI", result: "W 141-136", min: 42, pts: 38, reb: 4, ast: 15, fg: 64.3, tp: 55.6, ft: 95.0 },
+                        { date: "Jan 4", opponent: "@ DET", result: "W 122-101", min: 33, pts: 19, reb: 8, ast: 7, fg: 50.0, tp: 25.0, ft: 100.0 },
+                        { date: "Jan 2", opponent: "vs CLE", result: "L 108-114", min: 40, pts: 29, reb: 3, ast: 11, fg: 46.7, tp: 38.5, ft: 83.3 },
+                        { date: "Dec 30", opponent: "@ ORL", result: "W 117-110", min: 37, pts: 25, reb: 5, ast: 9, fg: 55.6, tp: 44.4, ft: 90.9 }
+                      ].map((game, index) => (
+                        <tr key={index} className="border-b hover:bg-gray-50">
+                          <td className="p-3 text-sm">{game.date}</td>
+                          <td className="p-3 text-sm font-medium">{game.opponent}</td>
+                          <td className="p-3 text-sm">
+                            <span className={`font-medium ${
+                              game.result.startsWith('W') ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {game.result}
+                            </span>
+                          </td>
+                          <td className="p-3 text-sm text-center">{game.min}</td>
+                          <td className="p-3 text-sm text-center font-medium">{game.pts}</td>
+                          <td className="p-3 text-sm text-center">{game.reb}</td>
+                          <td className="p-3 text-sm text-center">{game.ast}</td>
+                          <td className="p-3 text-sm text-center">{game.fg}%</td>
+                          <td className="p-3 text-sm text-center">{game.tp}%</td>
+                          <td className="p-3 text-sm text-center">{game.ft}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 text-center">
+                  <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                    View Full Season Game Logs
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Community Tab */}

@@ -19,40 +19,6 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Enhanced player profile information (additional fields to existing players table)
--- Note: This assumes the existing players table - we'll add these columns if they don't exist
-DO $$ 
-BEGIN
-    -- Add physical info columns if they don't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='height') THEN
-        ALTER TABLE players ADD COLUMN height VARCHAR;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='weight') THEN
-        ALTER TABLE players ADD COLUMN weight VARCHAR;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='age') THEN
-        ALTER TABLE players ADD COLUMN age INTEGER;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='years_experience') THEN
-        ALTER TABLE players ADD COLUMN years_experience INTEGER;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='jersey_number') THEN
-        ALTER TABLE players ADD COLUMN jersey_number VARCHAR;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='injury_status') THEN
-        ALTER TABLE players ADD COLUMN injury_status VARCHAR;
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='players' AND column_name='is_active') THEN
-        ALTER TABLE players ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
-    END IF;
-END $$;
-
 -- Player Discussions Table
 CREATE TABLE IF NOT EXISTS player_discussions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
