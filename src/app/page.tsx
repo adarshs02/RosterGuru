@@ -77,12 +77,14 @@ export default async function Home() {
                 badge: "Predictions",
               },
             ].map((feature, index) => {
-              // Make Player Database card clickable
+              // Make Player Database and Player Profiles cards clickable
               const isPlayerDatabase = feature.title === "Player Database";
+              const isPlayerProfiles = feature.title === "Player Profiles";
+              const isClickable = isPlayerDatabase || isPlayerProfiles;
               
               const cardContent = (
                 <Card className={`hover:shadow-lg transition-shadow ${
-                  isPlayerDatabase ? 'cursor-pointer hover:border-blue-200' : ''
+                  isClickable ? 'cursor-pointer hover:border-blue-200' : ''
                 }`}>
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
@@ -93,7 +95,7 @@ export default async function Home() {
                     </div>
                     <CardTitle className="text-lg flex items-center gap-2">
                       {feature.title}
-                      {isPlayerDatabase && (
+                      {isClickable && (
                         <ArrowUpRight className="w-4 h-4 text-blue-600" />
                       )}
                     </CardTitle>
@@ -104,15 +106,25 @@ export default async function Home() {
                 </Card>
               );
               
-              return isPlayerDatabase ? (
-                <Link key={index} href="/playerdatabase">
-                  {cardContent}
-                </Link>
-              ) : (
-                <div key={index}>
-                  {cardContent}
-                </div>
-              );
+              if (isPlayerDatabase) {
+                return (
+                  <Link key={index} href="/playerdatabase">
+                    {cardContent}
+                  </Link>
+                );
+              } else if (isPlayerProfiles) {
+                return (
+                  <Link key={index} href="/players">
+                    {cardContent}
+                  </Link>
+                );
+              } else {
+                return (
+                  <div key={index}>
+                    {cardContent}
+                  </div>
+                );
+              }
             })}
           </div>
         </div>

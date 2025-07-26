@@ -14,7 +14,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="#features"
+                  href="/playerdatabase"
                   className="text-gray-600 hover:text-blue-600"
                 >
                   Player Database

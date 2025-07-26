@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,6 +19,9 @@ import {
   BarChart3,
   Eye,
   Users,
+  Bookmark,
+  BookmarkCheck,
+  X,
 } from "lucide-react";
 import {
   Select,
@@ -123,6 +128,146 @@ const POPULAR_PLAYERS = [
     trending: "up",
     discussions: 25,
     projections: 18,
+  },
+  {
+    id: "7",
+    name: "Damian Lillard",
+    team: "MIL",
+    position: ["PG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=dame",
+    points: 25.0,
+    rebounds: 4.5,
+    assists: 7.0,
+    zscore: 1.9,
+    trending: "stable",
+    discussions: 31,
+    projections: 16,
+  },
+  {
+    id: "8",
+    name: "Tyrese Haliburton",
+    team: "IND",
+    position: ["PG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=tyrese",
+    points: 20.1,
+    rebounds: 3.9,
+    assists: 10.9,
+    zscore: 1.8,
+    trending: "up",
+    discussions: 28,
+    projections: 14,
+  },
+  {
+    id: "9",
+    name: "Donovan Mitchell",
+    team: "CLE",
+    position: ["SG", "PG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=donovan",
+    points: 28.2,
+    rebounds: 4.3,
+    assists: 6.1,
+    zscore: 1.7,
+    trending: "down",
+    discussions: 24,
+    projections: 12,
+  },
+  {
+    id: "10",
+    name: "De'Aaron Fox",
+    team: "SAC",
+    position: ["PG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=fox",
+    points: 26.6,
+    rebounds: 4.6,
+    assists: 5.6,
+    zscore: 1.6,
+    trending: "up",
+    discussions: 21,
+    projections: 11,
+  },
+  {
+    id: "11",
+    name: "Victor Wembanyama",
+    team: "SAS",
+    position: ["C", "PF"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=wemby",
+    points: 21.4,
+    rebounds: 10.6,
+    assists: 3.9,
+    zscore: 1.5,
+    trending: "up",
+    discussions: 42,
+    projections: 28,
+  },
+  {
+    id: "12",
+    name: "Paolo Banchero",
+    team: "ORL",
+    position: ["PF", "SF"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=paolo",
+    points: 22.6,
+    rebounds: 6.9,
+    assists: 5.4,
+    zscore: 1.4,
+    trending: "stable",
+    discussions: 19,
+    projections: 9,
+  },
+  {
+    id: "13",
+    name: "LaMelo Ball",
+    team: "CHA",
+    position: ["PG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=lamelo",
+    points: 23.9,
+    rebounds: 5.1,
+    assists: 8.3,
+    zscore: 1.3,
+    trending: "up",
+    discussions: 26,
+    projections: 13,
+  },
+  {
+    id: "14",
+    name: "Scottie Barnes",
+    team: "TOR",
+    position: ["SF", "PF"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=scottie",
+    points: 19.9,
+    rebounds: 8.2,
+    assists: 6.1,
+    zscore: 1.2,
+    trending: "stable",
+    discussions: 17,
+    projections: 8,
+  },
+  {
+    id: "15",
+    name: "Franz Wagner",
+    team: "ORL",
+    position: ["SF", "SG"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=franz",
+    points: 23.1,
+    rebounds: 5.4,
+    assists: 5.7,
+    zscore: 1.1,
+    trending: "up",
+    discussions: 15,
+    projections: 7,
+  },
+  {
+    id: "16",
+    name: "Alperen Şengün",
+    team: "HOU",
+    position: ["C"],
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=sengun",
+    points: 21.1,
+    rebounds: 9.3,
+    assists: 5.0,
+    zscore: 1.0,
+    trending: "up",
+    discussions: 13,
+    projections: 6,
   },
 ];
 
@@ -247,19 +392,45 @@ export default function PlayersPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [filteredPlayers, setFilteredPlayers] = useState(POPULAR_PLAYERS);
   const [activeTab, setActiveTab] = useState("overview");
+  const [watchList, setWatchList] = useState<string[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist">("popular");
 
-  // Filter players based on search term
+  // Toggle watch list
+  const toggleWatchList = (playerId: string) => {
+    setWatchList(prev => 
+      prev.includes(playerId) 
+        ? prev.filter(id => id !== playerId)
+        : [...prev, playerId]
+    );
+  };
+
+  // Normalize text for search (remove accents, lowercase, trim)
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
+      .toLowerCase()
+      .trim();
+  };
+
+  // Clear search function
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Filter players based on search term with name normalization
   useEffect(() => {
     if (!searchTerm) {
       setFilteredPlayers(POPULAR_PLAYERS);
     } else {
+      const normalizedSearchTerm = normalizeText(searchTerm);
       const filtered = POPULAR_PLAYERS.filter(
         (player) =>
-          player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          player.team.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          normalizeText(player.name).includes(normalizedSearchTerm) ||
+          normalizeText(player.team).includes(normalizedSearchTerm) ||
           player.position.some((pos) =>
-            pos.toLowerCase().includes(searchTerm.toLowerCase()),
-          ),
+            normalizeText(pos).includes(normalizedSearchTerm)
+          )
       );
       setFilteredPlayers(filtered);
     }
@@ -271,6 +442,7 @@ export default function PlayersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <Navbar />
       {/* Header Section */}
       <section className="bg-white border-b">
         <div className="container mx-auto px-4 py-8">
@@ -309,109 +481,237 @@ export default function PlayersPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               placeholder="Search for NBA players by name, team, or position..."
-              className="pl-12 pr-4 py-3 text-lg"
+              className="pl-12 pr-12 py-3 text-lg"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </section>
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Popular Players Sidebar */}
+          {/* Popular Players / Watch List Sidebar */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  {searchTerm
-                    ? `Search Results (${filteredPlayers.length})`
-                    : "Popular Players"}
-                </CardTitle>
+                <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as "popular" | "watchlist")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="popular" className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Popular Players
+                    </TabsTrigger>
+                    <TabsTrigger value="watchlist" className="flex items-center gap-2">
+                      <Bookmark className="w-4 h-4" />
+                      Watch List ({watchList.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {filteredPlayers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>No players found matching your search.</p>
-                  </div>
-                ) : (
-                  filteredPlayers.map((player) => (
-                    <div
-                      key={player.id}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                        selectedPlayer === player.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setSelectedPlayer(player.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={player.image}
-                          alt={player.name}
-                          className="w-12 h-12 rounded-full bg-gray-100"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-sm truncate">
-                              {player.name}
-                            </h3>
-                            {player.trending === "up" && (
-                              <TrendingUp className="w-3 h-3 text-green-500" />
-                            )}
-                            {player.trending === "down" && (
-                              <TrendingDown className="w-3 h-3 text-red-500" />
-                            )}
+              <CardContent className="p-0">
+                <Tabs value={sidebarTab} className="w-full">
+                  <TabsContent value="popular" className="mt-0">
+                    <div className="max-h-[600px] overflow-y-auto scrollbar-hide hover:scrollbar-show smooth-scroll px-6 pb-6">
+                      <div className="space-y-3 pt-6">
+                        {filteredPlayers.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p>No players found matching your search.</p>
                           </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs">
-                              {player.team}
-                            </Badge>
-                            <div className="flex gap-1">
-                              {player.position.map((pos, idx) => (
-                                <Badge
-                                  key={idx}
-                                  className={`text-xs ${getPositionColor(pos)}`}
-                                >
-                                  {pos}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {player.points} PTS • {player.rebounds} REB •{" "}
-                            {player.assists} AST
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span
-                              className={`text-xs font-medium ${
-                                player.zscore >= 2.0
-                                  ? "text-green-600"
-                                  : player.zscore >= 1.0
-                                    ? "text-blue-600"
-                                    : "text-gray-600"
+                        ) : (
+                          filteredPlayers.map((player) => (
+                            <div
+                              key={player.id}
+                              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md relative ${
+                                selectedPlayer === player.id
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 hover:border-gray-300"
                               }`}
+                              onClick={() => setSelectedPlayer(player.id)}
                             >
-                              Z-Score: +{player.zscore}
-                            </span>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <MessageSquare className="w-3 h-3" />
-                                {player.discussions}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Target className="w-3 h-3" />
-                                {player.projections}
-                              </span>
+                              {/* Watch List Icon */}
+                              <button
+                                className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleWatchList(player.id);
+                                }}
+                              >
+                                {watchList.includes(player.id) ? (
+                                  <BookmarkCheck className="w-4 h-4 text-blue-600" />
+                                ) : (
+                                  <Bookmark className="w-4 h-4 text-gray-400 hover:text-blue-600" />
+                                )}
+                              </button>
+                              
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={player.image}
+                                  alt={player.name}
+                                  className="w-12 h-12 rounded-full bg-gray-100"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-semibold text-sm truncate">
+                                      {player.name}
+                                    </h3>
+                                    {player.trending === "up" && (
+                                      <TrendingUp className="w-3 h-3 text-green-500" />
+                                    )}
+                                    {player.trending === "down" && (
+                                      <TrendingDown className="w-3 h-3 text-red-500" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {player.team}
+                                    </Badge>
+                                    <div className="flex gap-1">
+                                      {player.position.map((pos, idx) => (
+                                        <Badge
+                                          key={idx}
+                                          className={`text-xs ${getPositionColor(pos)}`}
+                                        >
+                                          {pos}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    {player.points} PTS • {player.rebounds} REB • {player.assists} AST
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        player.zscore >= 2.0
+                                          ? "text-green-600"
+                                          : player.zscore >= 1.0
+                                            ? "text-blue-600"
+                                            : "text-gray-600"
+                                      }`}
+                                    >
+                                      Z-Score: +{player.zscore}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <span className="flex items-center gap-1">
+                                        <MessageSquare className="w-3 h-3" />
+                                        {player.discussions}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Target className="w-3 h-3" />
+                                        {player.projections}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          ))
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
+                  </TabsContent>
+                  
+                  <TabsContent value="watchlist" className="mt-0">
+                    <div className="max-h-[600px] overflow-y-auto scrollbar-hide hover:scrollbar-show smooth-scroll px-6 pb-6">
+                      <div className="space-y-3 pt-6">
+                        {watchList.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Bookmark className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p className="mb-2">Your watch list is empty.</p>
+                            <p className="text-sm">Click the bookmark icon on any player to add them to your watch list.</p>
+                          </div>
+                        ) : (
+                          watchList.map((playerId) => {
+                            const player = POPULAR_PLAYERS.find(p => p.id === playerId);
+                            if (!player) return null;
+                            
+                            return (
+                              <div
+                                key={player.id}
+                                className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md relative ${
+                                  selectedPlayer === player.id
+                                    ? "border-blue-500 bg-blue-50"
+                                    : "border-gray-200 hover:border-gray-300"
+                                }`}
+                                onClick={() => setSelectedPlayer(player.id)}
+                              >
+                                {/* Remove from Watch List Icon */}
+                                <button
+                                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleWatchList(player.id);
+                                  }}
+                                >
+                                  <BookmarkCheck className="w-4 h-4 text-blue-600 hover:text-red-600" />
+                                </button>
+                                
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={player.image}
+                                    alt={player.name}
+                                    className="w-12 h-12 rounded-full bg-gray-100"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className="font-semibold text-sm truncate">
+                                        {player.name}
+                                      </h3>
+                                      {player.trending === "up" && (
+                                        <TrendingUp className="w-3 h-3 text-green-500" />
+                                      )}
+                                      {player.trending === "down" && (
+                                        <TrendingDown className="w-3 h-3 text-red-500" />
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {player.team}
+                                      </Badge>
+                                      <div className="flex gap-1">
+                                        {player.position.map((pos, idx) => (
+                                          <Badge
+                                            key={idx}
+                                            className={`text-xs ${getPositionColor(pos)}`}
+                                          >
+                                            {pos}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                      <span>{player.points} PTS • {player.rebounds} REB • {player.assists} AST</span>
+                                      <div className="flex items-center gap-3">
+                                        <span className="flex items-center gap-1">
+                                          <MessageSquare className="w-3 h-3" />
+                                          {player.discussions}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <Target className="w-3 h-3" />
+                                          {player.projections}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
@@ -469,7 +769,13 @@ export default function PlayersPage() {
                         <div className="text-2xl font-bold mb-1">
                           +{playerProfile.zscore}
                         </div>
-                        <div className="text-white/80 text-sm">Z-Score</div>
+                        <div className="text-white/80 text-sm mb-3">Z-Score</div>
+                        <Link href={`/players/${selectedPlayer}`}>
+                          <Button className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Full Profile
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -740,6 +1046,7 @@ export default function PlayersPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
