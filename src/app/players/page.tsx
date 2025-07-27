@@ -40,240 +40,79 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fetchPlayersWithStats, PlayerData } from "@/lib/playerData";
-import Spinner from "@/components/ui/spinner";
+import { fetchTopPlayers, PopularPlayerData } from '@/lib/topPlayersApi';
+import { useUser } from '@clerk/nextjs';
+import { useWatchList } from '@/lib/hooks/useWatchList';
+import { WatchListPlayerInput } from '@/lib/api/watchListApi';
+import { fetchPlayerSeasons, PlayerSeasonStats } from '@/lib/playerSeasonsApi';
+import Spinner from '@/components/ui/spinner';
+import CircleSpinner from '@/components/ui/circle-spinner';
 import Link from "next/link";
+import { useAuth } from "@/lib/hooks/useWatchList";
 
-// Mock popular players data
-const POPULAR_PLAYERS = [
-  {
-    id: "1",
-    name: "Nikola Jokić",
-    team: "DEN",
-    position: ["C"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=jokic",
-    points: 26.4,
-    rebounds: 12.4,
-    assists: 9.0,
-    zscore: 2.8,
-    trending: "up",
-    discussions: 47,
-    projections: 23,
-  },
-  {
-    id: "2",
-    name: "Luka Dončić",
-    team: "DAL",
-    position: ["PG", "SG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=luka",
-    points: 32.4,
-    rebounds: 8.2,
-    assists: 9.1,
-    zscore: 2.6,
-    trending: "up",
-    discussions: 52,
-    projections: 31,
-  },
-  {
-    id: "3",
-    name: "Giannis Antetokounmpo",
-    team: "MIL",
-    position: ["PF", "C"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=giannis",
-    points: 30.4,
-    rebounds: 11.5,
-    assists: 6.5,
-    zscore: 2.5,
-    trending: "stable",
-    discussions: 38,
-    projections: 19,
-  },
-  {
-    id: "4",
-    name: "Jayson Tatum",
-    team: "BOS",
-    position: ["SF", "PF"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=tatum",
-    points: 26.9,
-    rebounds: 8.1,
-    assists: 4.9,
-    zscore: 2.1,
-    trending: "down",
-    discussions: 29,
-    projections: 15,
-  },
-  {
-    id: "5",
-    name: "Shai Gilgeous-Alexander",
-    team: "OKC",
-    position: ["PG", "SG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=shai",
-    points: 30.1,
-    rebounds: 5.5,
-    assists: 6.2,
-    zscore: 2.3,
-    trending: "up",
-    discussions: 34,
-    projections: 22,
-  },
-  {
-    id: "6",
-    name: "Anthony Davis",
-    team: "LAL",
-    position: ["PF", "C"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=ad",
-    points: 24.7,
-    rebounds: 12.6,
-    assists: 3.5,
-    zscore: 2.0,
-    trending: "up",
-    discussions: 25,
-    projections: 18,
-  },
-  {
-    id: "7",
-    name: "Damian Lillard",
-    team: "MIL",
-    position: ["PG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=dame",
-    points: 25.0,
-    rebounds: 4.5,
-    assists: 7.0,
-    zscore: 1.9,
-    trending: "stable",
-    discussions: 31,
-    projections: 16,
-  },
-  {
-    id: "8",
-    name: "Tyrese Haliburton",
-    team: "IND",
-    position: ["PG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=tyrese",
-    points: 20.1,
-    rebounds: 3.9,
-    assists: 10.9,
-    zscore: 1.8,
-    trending: "up",
-    discussions: 28,
-    projections: 14,
-  },
-  {
-    id: "9",
-    name: "Donovan Mitchell",
-    team: "CLE",
-    position: ["SG", "PG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=donovan",
-    points: 28.2,
-    rebounds: 4.3,
-    assists: 6.1,
-    zscore: 1.7,
-    trending: "down",
-    discussions: 24,
-    projections: 12,
-  },
-  {
-    id: "10",
-    name: "De'Aaron Fox",
-    team: "SAC",
-    position: ["PG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=fox",
-    points: 26.6,
-    rebounds: 4.6,
-    assists: 5.6,
-    zscore: 1.6,
-    trending: "up",
-    discussions: 21,
-    projections: 11,
-  },
-  {
-    id: "11",
-    name: "Victor Wembanyama",
-    team: "SAS",
-    position: ["C", "PF"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=wemby",
-    points: 21.4,
-    rebounds: 10.6,
-    assists: 3.9,
-    zscore: 1.5,
-    trending: "up",
-    discussions: 42,
-    projections: 28,
-  },
-  {
-    id: "12",
-    name: "Paolo Banchero",
-    team: "ORL",
-    position: ["PF", "SF"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=paolo",
-    points: 22.6,
-    rebounds: 6.9,
-    assists: 5.4,
-    zscore: 1.4,
-    trending: "stable",
-    discussions: 19,
-    projections: 9,
-  },
-  {
-    id: "13",
-    name: "LaMelo Ball",
-    team: "CHA",
-    position: ["PG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=lamelo",
-    points: 23.9,
-    rebounds: 5.1,
-    assists: 8.3,
-    zscore: 1.3,
-    trending: "up",
-    discussions: 26,
-    projections: 13,
-  },
-  {
-    id: "14",
-    name: "Scottie Barnes",
-    team: "TOR",
-    position: ["SF", "PF"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=scottie",
-    points: 19.9,
-    rebounds: 8.2,
-    assists: 6.1,
-    zscore: 1.2,
-    trending: "stable",
-    discussions: 17,
-    projections: 8,
-  },
-  {
-    id: "15",
-    name: "Franz Wagner",
-    team: "ORL",
-    position: ["SF", "SG"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=franz",
-    points: 23.1,
-    rebounds: 5.4,
-    assists: 5.7,
-    zscore: 1.1,
-    trending: "up",
-    discussions: 15,
-    projections: 7,
-  },
-  {
-    id: "16",
-    name: "Alperen Şengün",
-    team: "HOU",
-    position: ["C"],
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=sengun",
-    points: 21.1,
-    rebounds: 9.3,
-    assists: 5.0,
-    zscore: 1.0,
-    trending: "up",
-    discussions: 13,
-    projections: 6,
-  },
-];
+// Type definition for player data
+type PopularPlayerData = {
+  id: string;
+  player_id?: string; // Add the actual database UUID
+  name: string;
+  team: string;
+  position: string[];
+  image: string;
+  points: number;
+  rebounds: number;
+  assists: number;
+  zscore: number;
+  trending: "up" | "down" | "stable";
+  discussions: number;
+  projections: number;
+};
+
+// API endpoint for fetching top players
+const API_ENDPOINT = '/api/players/top';
+
+// Type for API response
+type TopPlayersApiResponse = {
+  success: boolean;
+  data: Record<string, PopularPlayerData>;
+  meta: {
+    season: string;
+    count: number;
+    limit: number;
+  };
+};
+
+// Helper function to fetch popular players from API
+const fetchPopularPlayers = async (): Promise<PopularPlayerData[]> => {
+  try {
+    const response = await fetch(API_ENDPOINT);
+    if (!response.ok) {
+      throw new Error('Failed to fetch players');
+    }
+    const data: any = await response.json();
+    if (!data.success) {
+      throw new Error('API returned error');
+    }
+    
+    // Transform the response to include player_id
+    const playersArray = Object.values(data.data).map((player: any, index: number) => {
+      // Get player_id from the API response by fetching the full player data
+      // Since the API transforms player data, we need to look at the original response structure
+      return {
+        ...player,
+        player_id: player.player_id || player.id // Fallback to id if player_id not available
+      } as PopularPlayerData;
+    });
+    
+    return playersArray.sort((a, b) => b.zscore - a.zscore);
+  } catch (error) {
+    console.error('Error fetching popular players:', error);
+    return [];
+  }
+};
 
 // Mock player profile data
-const getPlayerProfile = (playerId: string) => {
-  const player = POPULAR_PLAYERS.find((p) => p.id === playerId);
+const getPlayerProfile = (playerId: string, players: PopularPlayerData[]) => {
+  const player = players.find((p: PopularPlayerData) => p.id === playerId);
   if (!player) return null;
 
   return {
@@ -390,19 +229,43 @@ const getPositionColor = (position: string): string => {
 export default function PlayersPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  const [filteredPlayers, setFilteredPlayers] = useState(POPULAR_PLAYERS);
+  const [popularPlayers, setPopularPlayers] = useState<PopularPlayerData[]>([]);
+  const [filteredPlayers, setFilteredPlayers] = useState<PopularPlayerData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [watchList, setWatchList] = useState<string[]>([]);
   const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist">("popular");
   const [selectedPositions, setSelectedPositions] = useState<string[]>(["PG", "SG", "SF", "PF", "C"]);
+  
+  // Season data state
+  const [seasonData, setSeasonData] = useState<PlayerSeasonStats[]>([]);
+  const [seasonLoading, setSeasonLoading] = useState<boolean>(false);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+  
+  // Integrate Supabase+Clerk watch list system
+  const { user } = useUser();
+  const { watchList, isLoading: watchListLoading, toggleWatchList: toggleWatchListAPI } = useWatchList();
 
-  // Toggle watch list
-  const toggleWatchList = (playerId: string) => {
-    setWatchList(prev => 
-      prev.includes(playerId) 
-        ? prev.filter(id => id !== playerId)
-        : [...prev, playerId]
-    );
+  // Toggle watch list using Supabase+Clerk API
+  const toggleWatchList = async (player: PopularPlayerData) => {
+    if (!user) {
+      // Handle unauthenticated users - could show login modal
+      console.log('User must be logged in to use watch list');
+      return;
+    }
+
+    try {
+      const watchListPlayer: WatchListPlayerInput = {
+        player_id: player.id,
+        player_name: player.name,
+        player_team: player.team,
+        player_position: player.position,
+      };
+      
+      await toggleWatchListAPI(watchListPlayer);
+    } catch (error) {
+      console.error('Error toggling watch list:', error);
+    }
   };
 
   // Normalize text for search (remove accents, lowercase, trim)
@@ -428,14 +291,34 @@ export default function PlayersPage() {
     );
   };
 
+  // Fetch popular players on component mount
+  useEffect(() => {
+    const loadPlayers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const players = await fetchPopularPlayers();
+        setPopularPlayers(players);
+        setFilteredPlayers(players);
+      } catch (err) {
+        setError('Failed to load players');
+        console.error('Error loading players:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPlayers();
+  }, []);
+
   // Filter players based on search term and position filters
   useEffect(() => {
-    let filtered = POPULAR_PLAYERS;
+    let filtered = popularPlayers;
 
     // Apply position filter
     if (selectedPositions.length > 0 && selectedPositions.length < 5) {
-      filtered = filtered.filter(player =>
-        player.position.some(pos => selectedPositions.includes(pos))
+      filtered = filtered.filter((player: PopularPlayerData) =>
+        player.position.some((pos: string) => selectedPositions.includes(pos))
       );
     }
 
@@ -443,21 +326,109 @@ export default function PlayersPage() {
     if (searchTerm) {
       const normalizedSearchTerm = normalizeText(searchTerm);
       filtered = filtered.filter(
-        (player) =>
+        (player: PopularPlayerData) =>
           normalizeText(player.name).includes(normalizedSearchTerm) ||
           normalizeText(player.team).includes(normalizedSearchTerm) ||
-          player.position.some((pos) =>
+          player.position.some((pos: string) =>
             normalizeText(pos).includes(normalizedSearchTerm)
           )
       );
     }
 
     setFilteredPlayers(filtered);
-  }, [searchTerm, selectedPositions]);
+  }, [searchTerm, selectedPositions, popularPlayers]);
+
+  // Fetch season data when a player is selected
+  useEffect(() => {
+    const fetchSeasonData = async () => {
+      if (!selectedPlayer) {
+        setSeasonData([]);
+        setSeasonLoading(false);
+        setSeasonError(null);
+        return;
+      }
+
+      // Check if popularPlayers is loaded
+      if (popularPlayers.length === 0) {
+        // Popular players not loaded yet, show loading
+        setSeasonLoading(true);
+        setSeasonError(null);
+        return;
+      }
+
+      // Find the player object to get the actual UUID
+      const player = popularPlayers.find(p => p.id === selectedPlayer);
+      if (!player || !player.player_id) {
+        console.error('Player UUID not found for selected player:', selectedPlayer);
+        setSeasonError('Player ID not found');
+        setSeasonData([]);
+        setSeasonLoading(false);
+        return;
+      }
+
+      // Start loading
+      setSeasonLoading(true);
+      setSeasonError(null);
+      
+      try {
+        // Use the actual UUID (player_id) instead of the rank-based id
+        const response = await fetchPlayerSeasons(player.player_id);
+        setSeasonData(response.seasons);
+      } catch (error) {
+        console.error('Error fetching season data:', error);
+        setSeasonError('Failed to load season data');
+        setSeasonData([]);
+      } finally {
+        setSeasonLoading(false);
+      }
+    };
+
+    fetchSeasonData();
+  }, [selectedPlayer, popularPlayers]);
 
   const playerProfile = selectedPlayer
-    ? getPlayerProfile(selectedPlayer)
+    ? getPlayerProfile(selectedPlayer, popularPlayers)
     : null;
+
+  // Show loading screen while data is being fetched
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[600px]">
+          <div className="text-center">
+            <Spinner size="lg" className="mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Loading Players</h2>
+            <p className="text-gray-500">Fetching the latest NBA player data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[600px]">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+              <span className="text-red-600 text-2xl">⚠️</span>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Error Loading Players</h2>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -601,10 +572,10 @@ export default function PlayersPage() {
                                 className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleWatchList(player.id);
+                                  toggleWatchList(player);
                                 }}
                               >
-                                {watchList.includes(player.id) ? (
+                                {watchList.some(w => w.player_id === player.id) ? (
                                   <BookmarkCheck className="w-4 h-4 text-blue-600" />
                                 ) : (
                                   <Bookmark className="w-4 h-4 text-gray-400 hover:text-blue-600" />
@@ -615,7 +586,7 @@ export default function PlayersPage() {
                                 <img
                                   src={player.image}
                                   alt={player.name}
-                                  className="w-12 h-12 rounded-full bg-gray-100"
+                                  className="w-14 h-12 rounded-lg bg-gray-100 object-cover"
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
@@ -682,20 +653,44 @@ export default function PlayersPage() {
                   <TabsContent value="watchlist" className="mt-0">
                     <div className="max-h-[600px] overflow-y-auto scrollbar-hide hover:scrollbar-show smooth-scroll px-6 pb-6">
                       <div className="space-y-3 pt-6">
-                        {watchList.length === 0 ? (
+                        {watchListLoading ? (
+                          <div className="text-center py-8">
+                            <Spinner />
+                            <p className="text-gray-500 mt-2">Loading watch list...</p>
+                          </div>
+                        ) : !user ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Bookmark className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p className="mb-2">Sign in to create a watch list.</p>
+                            <p className="text-sm">Track your favorite players across devices.</p>
+                          </div>
+                        ) : watchList.length === 0 ? (
                           <div className="text-center py-8 text-gray-500">
                             <Bookmark className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                             <p className="mb-2">Your watch list is empty.</p>
                             <p className="text-sm">Click the bookmark icon on any player to add them to your watch list.</p>
                           </div>
                         ) : (
-                          watchList.map((playerId) => {
-                            const player = POPULAR_PLAYERS.find(p => p.id === playerId);
-                            if (!player) return null;
+                          watchList.map((watchListItem) => {
+                            // Convert WatchListPlayer to PopularPlayerData format for UI consistency
+                            const player: PopularPlayerData = {
+                              id: watchListItem.player_id,
+                              name: watchListItem.player_name,
+                              team: watchListItem.player_team,
+                              position: watchListItem.player_position,
+                              image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${watchListItem.player_name}`, // Fallback image
+                              points: 0, // These would need to be fetched from stats if needed
+                              rebounds: 0,
+                              assists: 0,
+                              zscore: 0,
+                              trending: "stable" as const,
+                              discussions: 0,
+                              projections: 0,
+                            };
                             
                             return (
                               <div
-                                key={player.id}
+                                key={watchListItem.id}
                                 className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md relative ${
                                   selectedPlayer === player.id
                                     ? "border-blue-500 bg-blue-50"
@@ -708,7 +703,7 @@ export default function PlayersPage() {
                                   className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    toggleWatchList(player.id);
+                                    toggleWatchList(player);
                                   }}
                                 >
                                   <BookmarkCheck className="w-4 h-4 text-blue-600 hover:text-red-600" />
@@ -718,7 +713,7 @@ export default function PlayersPage() {
                                   <img
                                     src={player.image}
                                     alt={player.name}
-                                    className="w-12 h-12 rounded-full bg-gray-100"
+                                    className="w-14 h-12 rounded-lg bg-gray-100 object-cover"
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
@@ -800,7 +795,7 @@ export default function PlayersPage() {
                       <img
                         src={playerProfile.image}
                         alt={playerProfile.name}
-                        className="w-20 h-20 rounded-full bg-white/20 p-2"
+                        className="w-24 h-20 rounded-lg bg-white/20 p-2 object-cover"
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -844,48 +839,36 @@ export default function PlayersPage() {
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">
-                        Points
+                        Points Per Game
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="text-2xl font-bold">
                         {playerProfile.points}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-green-600">
-                        <TrendingUp className="w-3 h-3" />
-                        +2.1 vs last season
-                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">
-                        Rebounds
+                        Rebounds Per Game
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="text-2xl font-bold">
                         {playerProfile.rebounds}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-green-600">
-                        <TrendingUp className="w-3 h-3" />
-                        +0.6 vs last season
-                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">
-                        Assists
+                        Assists Per Game
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="text-2xl font-bold">
                         {playerProfile.assists}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-red-600">
-                        <TrendingDown className="w-3 h-3" />
-                        -0.8 vs last season
                       </div>
                     </CardContent>
                   </Card>
@@ -917,69 +900,98 @@ export default function PlayersPage() {
                   <TabsContent value="overview" className="mt-6">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Last 4 Seasons Performance</CardTitle>
+                        <CardTitle>Last 3 Seasons Performance</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Season</TableHead>
-                                <TableHead className="text-center">
-                                  GP
-                                </TableHead>
-                                <TableHead className="text-center">
-                                  PTS
-                                </TableHead>
-                                <TableHead className="text-center">
-                                  REB
-                                </TableHead>
-                                <TableHead className="text-center">
-                                  AST
-                                </TableHead>
-                                <TableHead className="text-center">
-                                  Z-Score
-                                </TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {playerProfile.seasonHistory.map(
-                                (season, index) => (
+                        {seasonLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <CircleSpinner size="md" className="mr-3" />
+                            <span className="text-gray-600">Loading season data...</span>
+                          </div>
+                        ) : seasonError ? (
+                          <div className="text-center py-8">
+                            <div className="text-red-600 mb-2">⚠️ {seasonError}</div>
+                            <button 
+                              onClick={() => {
+                                if (selectedPlayer) {
+                                  // Trigger refetch by updating selectedPlayer state
+                                  const currentPlayer = selectedPlayer;
+                                  setSelectedPlayer(null);
+                                  setTimeout(() => setSelectedPlayer(currentPlayer), 100);
+                                }
+                              }}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ) : seasonData.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <div className="mb-2">📊 No season data available</div>
+                            <p className="text-sm">Season statistics not found for this player.</p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Season</TableHead>
+                                  <TableHead className="text-center">Team</TableHead>
+                                  <TableHead className="text-center">GP</TableHead>
+                                  <TableHead className="text-center">PTS</TableHead>
+                                  <TableHead className="text-center">REB</TableHead>
+                                  <TableHead className="text-center">AST</TableHead>
+                                  <TableHead className="text-center">FG%</TableHead>
+                                  <TableHead className="text-center">Z-Score</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {seasonData.map((season, index) => (
                                   <TableRow key={index}>
                                     <TableCell className="font-medium">
                                       {season.season}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {season.games}
+                                      <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
+                                        {season.team_abbreviation}
+                                      </span>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {season.points}
+                                      {season.games_played}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {season.rebounds}
+                                      {season.points.toFixed(1)}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {season.assists}
+                                      {season.total_rebounds.toFixed(1)}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {season.assists.toFixed(1)}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {(season.field_goal_percentage * 100).toFixed(1)}%
                                     </TableCell>
                                     <TableCell className="text-center">
                                       <span
                                         className={`font-semibold ${
-                                          season.zscore >= 2.0
+                                          season.zscore_total >= 2.0
                                             ? "text-green-600"
-                                            : season.zscore >= 1.0
+                                            : season.zscore_total >= 1.0
                                               ? "text-blue-600"
-                                              : "text-gray-600"
+                                              : season.zscore_total >= 0
+                                                ? "text-gray-600"
+                                                : "text-red-600"
                                         }`}
                                       >
-                                        +{season.zscore}
+                                        {season.zscore_total >= 0 ? '+' : ''}{season.zscore_total.toFixed(2)}
                                       </span>
                                     </TableCell>
                                   </TableRow>
-                                ),
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </TabsContent>
