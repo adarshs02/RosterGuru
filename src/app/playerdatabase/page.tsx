@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchPlayersWithStats, PlayerData } from '@/lib/playerData';
 import CircleSpinner from "@/components/ui/circle-spinner";
-import { calculateCustomZScore, DEFAULT_MULTIPLIERS, PlayerStatsForZScore } from '@/lib/zscoreCalculator';
+import { calculateCustomZScoresForPlayers, DEFAULT_MULTIPLIERS, PlayerStatsForZScore } from '@/lib/zscoreCalculator';
 
 // Available seasons for the year selector
 const AVAILABLE_SEASONS = [
@@ -51,35 +51,41 @@ export default function PlayersPage() {
         );
         
         if (playersWithZScores.length > 0) {
-          // Calculate custom z-scores for each player
+          // Convert PlayerData to PlayerStatsForZScore for batch calculation
+          const playersAsZScoreInput: PlayerStatsForZScore[] = playersWithZScores.map(player => ({
+            player_id: player.player_id.toString(),
+            player_name: player.player_name,
+            points: player.points,
+            rebounds: player.rebounds,
+            assists: player.assists,
+            steals: player.steals,
+            blocks: player.blocks,
+            turnovers: player.turnovers,
+            field_goal_percentage: player.field_goal_percentage,
+            field_goals_attempted: player.field_goals_attempted,
+            free_throw_percentage: player.free_throw_percentage,
+            free_throws_attempted: player.free_throws_attempted,
+            three_pointers_made: player.three_pointers_made,
+            zscore_points: player.zscore_points,
+            zscore_rebounds: player.zscore_rebounds,
+            zscore_assists: player.zscore_assists,
+            zscore_steals: player.zscore_steals,
+            zscore_blocks: player.zscore_blocks,
+            zscore_turnovers: player.zscore_turnovers,
+            zscore_fg_pct: player.zscore_fg_pct,
+            zscore_ft_pct: player.zscore_ft_pct,
+            zscore_three_pm: player.zscore_three_pm
+          }));
+          
+          // Calculate custom z-scores using the same function as the table
+          const withCustomZScores = calculateCustomZScoresForPlayers(playersAsZScoreInput, DEFAULT_MULTIPLIERS);
+          
+          // Map back to PlayerData format with custom z-scores
           const playersWithCustomZScores = playersWithZScores.map(player => {
-            // Convert PlayerData to PlayerStatsForZScore for the calculation
-            const playerForZScore: PlayerStatsForZScore = {
-              player_id: player.player_id.toString(),
-              player_name: player.player_name,
-              points: player.points,
-              rebounds: player.rebounds,
-              assists: player.assists,
-              steals: player.steals,
-              blocks: player.blocks,
-              turnovers: player.turnovers,
-              field_goal_percentage: player.field_goal_percentage,
-              free_throw_percentage: player.free_throw_percentage,
-              three_pointers_made: player.three_pointers_made,
-              zscore_points: player.zscore_points,
-              zscore_rebounds: player.zscore_rebounds,
-              zscore_assists: player.zscore_assists,
-              zscore_steals: player.zscore_steals,
-              zscore_blocks: player.zscore_blocks,
-              zscore_turnovers: player.zscore_turnovers,
-              zscore_fg_pct: player.zscore_fg_pct,
-              zscore_ft_pct: player.zscore_ft_pct,
-              zscore_three_pm: player.zscore_three_pm
-            };
-            
+            const customPlayer = withCustomZScores.find(p => p.player_id === player.player_id.toString());
             return {
               ...player,
-              customZScore: calculateCustomZScore(playerForZScore, DEFAULT_MULTIPLIERS)
+              customZScore: customPlayer?.custom_zscore_total || 0
             };
           });
           

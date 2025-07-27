@@ -16,9 +16,11 @@ export interface PlayerData {
   blocks: number
   turnovers: number
   field_goal_percentage: number
+  field_goals_attempted: number
   three_pointers_made: number
   three_point_percentage: number
   free_throw_percentage: number
+  free_throws_attempted: number
   // Individual stat z-scores for custom calculation
   zscore_points: number
   zscore_rebounds: number
@@ -124,9 +126,11 @@ export async function fetchPlayersWithStats(
           blocks: getBlocksValue(stats, statsType),
           turnovers: getTurnoversValue(stats, statsType),
           field_goal_percentage: stats.field_goal_percentage || 0,
+          field_goals_attempted: stats.field_goals_attempted || 0,
           three_pointers_made: getThreePointersMadeValue(stats, statsType),
           three_point_percentage: stats.three_point_percentage || 0,
           free_throw_percentage: stats.free_throw_percentage || 0,
+          free_throws_attempted: stats.free_throws_attempted || 0,
           // Individual stat z-scores for custom calculation
           zscore_points: stats.zscore_points || 0,
           zscore_rebounds: stats.zscore_rebounds || 0,
