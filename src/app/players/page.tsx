@@ -237,10 +237,10 @@ export default function PlayersPage() {
   const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist">("popular");
   const [selectedPositions, setSelectedPositions] = useState<string[]>(["PG", "SG", "SF", "PF", "C"]);
   
-  // Season data state
-  const [seasonData, setSeasonData] = useState<PlayerSeasonStats[]>([]);
-  const [seasonLoading, setSeasonLoading] = useState<boolean>(false);
-  const [seasonError, setSeasonError] = useState<string | null>(null);
+  // Season data dictionary - preloaded for all players
+  const [seasonDataDict, setSeasonDataDict] = useState<Record<string, PlayerSeasonStats[]>>({});
+  const [seasonDataLoading, setSeasonDataLoading] = useState<boolean>(false);
+  const [seasonDataError, setSeasonDataError] = useState<string | null>(null);
   
   // Integrate Supabase+Clerk watch list system
   const { user } = useUser();
@@ -338,53 +338,58 @@ export default function PlayersPage() {
     setFilteredPlayers(filtered);
   }, [searchTerm, selectedPositions, popularPlayers]);
 
-  // Fetch season data when a player is selected
+  // Preload season data for all players when popularPlayers loads
   useEffect(() => {
-    const fetchSeasonData = async () => {
-      if (!selectedPlayer) {
-        setSeasonData([]);
-        setSeasonLoading(false);
-        setSeasonError(null);
-        return;
-      }
-
-      // Check if popularPlayers is loaded
+    const preloadSeasonData = async () => {
       if (popularPlayers.length === 0) {
-        // Popular players not loaded yet, show loading
-        setSeasonLoading(true);
-        setSeasonError(null);
-        return;
+        return; // Wait for popular players to load
       }
 
-      // Find the player object to get the actual UUID
-      const player = popularPlayers.find(p => p.id === selectedPlayer);
-      if (!player || !player.player_id) {
-        console.error('Player UUID not found for selected player:', selectedPlayer);
-        setSeasonError('Player ID not found');
-        setSeasonData([]);
-        setSeasonLoading(false);
-        return;
+      if (Object.keys(seasonDataDict).length > 0) {
+        return; // Already loaded
       }
 
-      // Start loading
-      setSeasonLoading(true);
-      setSeasonError(null);
+      setSeasonDataLoading(true);
+      setSeasonDataError(null);
       
       try {
-        // Use the actual UUID (player_id) instead of the rank-based id
-        const response = await fetchPlayerSeasons(player.player_id);
-        setSeasonData(response.seasons);
+        const seasonPromises = popularPlayers.map(async (player) => {
+          if (!player.player_id) {
+            console.warn(`No player_id for player: ${player.name}`);
+            return { playerId: player.player_id, seasons: [] };
+          }
+          
+          try {
+            const response = await fetchPlayerSeasons(player.player_id);
+            return { playerId: player.player_id, seasons: response.seasons };
+          } catch (error) {
+            console.error(`Error fetching season data for ${player.name}:`, error);
+            return { playerId: player.player_id, seasons: [] };
+          }
+        });
+
+        const seasonResults = await Promise.all(seasonPromises);
+        
+        // Build the dictionary
+        const newSeasonDict: Record<string, PlayerSeasonStats[]> = {};
+        seasonResults.forEach(result => {
+          if (result.playerId) {
+            newSeasonDict[result.playerId] = result.seasons;
+          }
+        });
+        
+        setSeasonDataDict(newSeasonDict);
+        console.log(`Preloaded season data for ${Object.keys(newSeasonDict).length} players`);
       } catch (error) {
-        console.error('Error fetching season data:', error);
-        setSeasonError('Failed to load season data');
-        setSeasonData([]);
+        console.error('Error preloading season data:', error);
+        setSeasonDataError('Failed to load season data');
       } finally {
-        setSeasonLoading(false);
+        setSeasonDataLoading(false);
       }
     };
 
-    fetchSeasonData();
-  }, [selectedPlayer, popularPlayers]);
+    preloadSeasonData();
+  }, [popularPlayers]);
 
   const playerProfile = selectedPlayer
     ? getPlayerProfile(selectedPlayer, popularPlayers)
@@ -903,50 +908,81 @@ export default function PlayersPage() {
                         <CardTitle>Last 3 Seasons Performance</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {seasonLoading ? (
-                          <div className="flex items-center justify-center py-8">
-                            <CircleSpinner size="md" className="mr-3" />
-                            <span className="text-gray-600">Loading season data...</span>
-                          </div>
-                        ) : seasonError ? (
-                          <div className="text-center py-8">
-                            <div className="text-red-600 mb-2">⚠️ {seasonError}</div>
-                            <button 
-                              onClick={() => {
-                                if (selectedPlayer) {
-                                  // Trigger refetch by updating selectedPlayer state
-                                  const currentPlayer = selectedPlayer;
-                                  setSelectedPlayer(null);
-                                  setTimeout(() => setSelectedPlayer(currentPlayer), 100);
-                                }
-                              }}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                            >
-                              Retry
-                            </button>
-                          </div>
-                        ) : seasonData.length === 0 ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <div className="mb-2">📊 No season data available</div>
-                            <p className="text-sm">Season statistics not found for this player.</p>
-                          </div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Season</TableHead>
-                                  <TableHead className="text-center">Team</TableHead>
-                                  <TableHead className="text-center">GP</TableHead>
-                                  <TableHead className="text-center">PTS</TableHead>
-                                  <TableHead className="text-center">REB</TableHead>
-                                  <TableHead className="text-center">AST</TableHead>
-                                  <TableHead className="text-center">FG%</TableHead>
-                                  <TableHead className="text-center">Z-Score</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {seasonData.map((season, index) => (
+                        {(() => {
+                          // Get current player's season data from the dictionary
+                          if (!selectedPlayer) {
+                            return (
+                              <div className="text-center py-8 text-gray-500">
+                                <div className="mb-2">🏀 Select a player</div>
+                                <p className="text-sm">Choose a player to view their season statistics.</p>
+                              </div>
+                            );
+                          }
+
+                          const player = popularPlayers.find(p => p.id === selectedPlayer);
+                          if (!player || !player.player_id) {
+                            return (
+                              <div className="text-center py-8 text-red-500">
+                                <div className="mb-2">⚠️ Player not found</div>
+                                <p className="text-sm">Player information could not be loaded.</p>
+                              </div>
+                            );
+                          }
+
+                          // Check if we're still loading season data
+                          if (seasonDataLoading) {
+                            return (
+                              <div className="flex items-center justify-center py-8">
+                                <CircleSpinner size="md" className="mr-3" />
+                                <span className="text-gray-600">Loading season data...</span>
+                              </div>
+                            );
+                          }
+
+                          // Check for general loading error
+                          if (seasonDataError) {
+                            return (
+                              <div className="text-center py-8">
+                                <div className="text-red-600 mb-2">⚠️ {seasonDataError}</div>
+                                <button 
+                                  onClick={() => window.location.reload()}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                >
+                                  Retry
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          // Get season data for this specific player
+                          const currentPlayerSeasonData = seasonDataDict[player.player_id] || [];
+                          
+                          if (currentPlayerSeasonData.length === 0) {
+                            return (
+                              <div className="text-center py-8 text-gray-500">
+                                <div className="mb-2">📊 No season data available</div>
+                                <p className="text-sm">Season statistics not found for this player.</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Season</TableHead>
+                                    <TableHead className="text-center">Team</TableHead>
+                                    <TableHead className="text-center">GP</TableHead>
+                                    <TableHead className="text-center">PTS</TableHead>
+                                    <TableHead className="text-center">REB</TableHead>
+                                    <TableHead className="text-center">AST</TableHead>
+                                    <TableHead className="text-center">FG%</TableHead>
+                                    <TableHead className="text-center">Z-Score</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {currentPlayerSeasonData.map((season: PlayerSeasonStats, index: number) => (
                                   <TableRow key={index}>
                                     <TableCell className="font-medium">
                                       {season.season}
@@ -983,25 +1019,26 @@ export default function PlayersPage() {
                                                 : "text-red-600"
                                         }`}
                                       >
-                                        {season.zscore_total >= 0 ? '+' : ''}{season.zscore_total.toFixed(2)}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
+                                         {season.zscore_total >= 0 ? '+' : ''}{season.zscore_total.toFixed(2)}
+                                       </span>
+                                     </TableCell>
+                                   </TableRow>
+                                 ))}
+                               </TableBody>
+                             </Table>
+                           </div>
+                          );
+                        })()}
+                       </CardContent>
+                     </Card>
+                   </TabsContent>
 
-                  <TabsContent value="discussions" className="mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MessageSquare className="w-5 h-5" />
-                          Community Discussions
+                   <TabsContent value="discussions" className="mt-6">
+                     <Card>
+                       <CardHeader>
+                         <CardTitle className="flex items-center gap-2">
+                           <MessageSquare className="w-5 h-5" />
+                           Community Discussions
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
