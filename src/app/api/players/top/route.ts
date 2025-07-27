@@ -19,6 +19,11 @@ export interface TopPlayerData {
   three_pointers_made: number;
   zscore_total: number;
   season: string;
+  // New fields from current_players table
+  height: string | null;
+  weight: string | null;
+  age: number | null;
+  jersey: string | null;
 }
 
 /**
@@ -119,15 +124,15 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Fetch current player team info and headshots
+    // Fetch current player team info, headshots, and physical details
     const { data: currentPlayerDetails, error: currentPlayersError } = await supabase
       .from('current_players')
-      .select('player_id, team_abbreviation, headshot_url')
+      .select('player_id, team_abbreviation, headshot_url, display_height, display_weight, age, jersey_number')
       .in('player_id', playerIds);
     
     console.log('Current players query result:', { 
       currentPlayerDetailsCount: currentPlayerDetails?.length, 
-      currentPlayersError: currentPlayersError?.message 
+      currentPlayersError: currentPlayersError?.message
     });
     
     if (currentPlayersError) {
@@ -143,6 +148,7 @@ export async function GET(request: NextRequest) {
     const transformedPlayers: TopPlayerData[] = topPlayers.map((player, index) => {
       const playerDetail = playerDetailsMap.get(player.player_id);
       const currentPlayerDetail = currentPlayerDetailsMap.get(player.player_id);
+      
       
       return {
         id: (index + 1).toString(), // Rank-based ID for compatibility
@@ -161,7 +167,12 @@ export async function GET(request: NextRequest) {
         free_throw_percentage: player.free_throw_percentage || 0,
         three_pointers_made: player.three_pointers_made || 0,
         zscore_total: player.zscore_total || 0,
-        season: player.season
+        season: player.season,
+        // New fields from current_players table
+        height: currentPlayerDetail?.display_height || null,
+        weight: currentPlayerDetail?.display_weight || null,
+        age: currentPlayerDetail?.age || null,
+        jersey: currentPlayerDetail?.jersey_number || null
       };
     });
     
@@ -176,10 +187,15 @@ export async function GET(request: NextRequest) {
       points: number;
       rebounds: number;
       assists: number;
-      zscore: number;
+      zscore_total: number;
       trending: "up" | "down" | "stable";
       discussions: number;
       projections: number;
+      // New fields from current_players table
+      height: string | null;
+      weight: string | null;
+      age: number | null;
+      jersey: string | null;
     }> = {};
 
     transformedPlayers.forEach((player, index) => {
@@ -194,10 +210,15 @@ export async function GET(request: NextRequest) {
         points: player.points,
         rebounds: player.rebounds,
         assists: player.assists,
-        zscore: player.zscore_total, // Map zscore_total to zscore
+        zscore_total: player.zscore_total, // Keep zscore_total field name for interface compatibility
         trending: "stable" as const, // Default to stable for now
         discussions: Math.floor(Math.random() * 50) + 10, // Mock data for compatibility
         projections: Math.floor(Math.random() * 30) + 5, // Mock data for compatibility
+        // Include the new fields from transformed data
+        height: player.height,
+        weight: player.weight,
+        age: player.age,
+        jersey: player.jersey,
       };
     });
 

@@ -40,7 +40,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fetchPlayersWithStats, PlayerData } from "@/lib/playerData";
-import { fetchTopPlayers, PopularPlayerData } from '@/lib/topPlayersApi';
+import { fetchTopPlayers } from '@/lib/topPlayersApi';
+import { TopPlayerData } from '@/app/api/players/top/route';
+import { fetchAllPlayers, AllPlayerData } from '@/lib/allPlayersApi';
 import { useUser } from '@clerk/nextjs';
 import { useWatchList } from '@/lib/hooks/useWatchList';
 import { WatchListPlayerInput } from '@/lib/api/watchListApi';
@@ -65,10 +67,62 @@ type PopularPlayerData = {
   trending: "up" | "down" | "stable";
   discussions: number;
   projections: number;
+  // New fields from current_players table
+  height: string | null;
+  weight: string | null;
+  age: number | null;
+  jersey: string | null;
 };
 
 // API endpoint for fetching top players
 const API_ENDPOINT = '/api/players/top';
+
+// Convert TopPlayerData to PopularPlayerData format
+const mapTopPlayerToPopularPlayer = (topPlayer: TopPlayerData): PopularPlayerData => {
+  return {
+    id: topPlayer.id,
+    player_id: topPlayer.player_id.toString(), // Convert number to string
+    name: topPlayer.name,
+    team: topPlayer.team,
+    position: topPlayer.position,
+    image: topPlayer.image || '/api/placeholder/150/150', // Fallback for null images
+    points: topPlayer.points,
+    rebounds: topPlayer.rebounds,
+    assists: topPlayer.assists,
+    zscore: topPlayer.zscore_total, // Use zscore_total from TopPlayerData interface
+    trending: "stable" as const, // Default trending status
+    discussions: Math.floor(Math.random() * 20), // Mock data for now
+    projections: Math.floor(Math.random() * 15), // Mock data for now
+    // Add the new fields from the API
+    height: topPlayer.height,
+    weight: topPlayer.weight,
+    age: topPlayer.age,
+    jersey: topPlayer.jersey
+  };
+};
+
+// Convert AllPlayerData to PopularPlayerData format
+const mapAllPlayerToPopularPlayer = (allPlayer: AllPlayerData): PopularPlayerData => {
+  return {
+    id: allPlayer.id,
+    player_id: allPlayer.player_id,
+    name: allPlayer.name,
+    team: allPlayer.team,
+    position: allPlayer.position,
+    image: allPlayer.image || '/api/placeholder/150/150',
+    points: allPlayer.points,
+    rebounds: allPlayer.rebounds,
+    assists: allPlayer.assists,
+    zscore: allPlayer.zscore_total,
+    trending: allPlayer.trending,
+    discussions: allPlayer.discussions,
+    projections: allPlayer.projections,
+    height: allPlayer.height,
+    weight: allPlayer.weight,
+    age: allPlayer.age,
+    jersey: allPlayer.jersey
+  };
+};
 
 // Type for API response
 type TopPlayersApiResponse = {
@@ -84,78 +138,47 @@ type TopPlayersApiResponse = {
 // Helper function to fetch popular players from API
 const fetchPopularPlayers = async (): Promise<PopularPlayerData[]> => {
   try {
-    const response = await fetch(API_ENDPOINT);
-    if (!response.ok) {
-      throw new Error('Failed to fetch players');
-    }
-    const data: any = await response.json();
-    if (!data.success) {
-      throw new Error('API returned error');
-    }
+    const response = await fetchTopPlayers({ limit: 20 });
     
-    // Transform the response to include player_id
-    const playersArray = Object.values(data.data).map((player: any, index: number) => {
-      // Get player_id from the API response by fetching the full player data
-      // Since the API transforms player data, we need to look at the original response structure
-      return {
-        ...player,
-        player_id: player.player_id || player.id // Fallback to id if player_id not available
-      } as PopularPlayerData;
+    // Convert dictionary response to array format expected by UI
+    const playersArray = Object.values(response.data).map((player) => {
+      return mapTopPlayerToPopularPlayer(player);
     });
     
-    return playersArray.sort((a, b) => b.zscore - a.zscore);
+    return playersArray;
   } catch (error) {
     console.error('Error fetching popular players:', error);
-    return [];
+    throw error;
   }
 };
 
-// Mock player profile data
-const getPlayerProfile = (playerId: string, players: PopularPlayerData[]) => {
-  const player = players.find((p: PopularPlayerData) => p.id === playerId);
+// Get player profile data with real info from API
+const getPlayerProfile = (playerId: string, popularPlayers: PopularPlayerData[], allPlayers: PopularPlayerData[], seasonDataDict: Record<string, any[]>) => {
+  // First try to find in popular players, then in all players
+  let player = popularPlayers.find((p: PopularPlayerData) => p.id === playerId);
+  if (!player) {
+    player = allPlayers.find((p: PopularPlayerData) => p.id === playerId);
+  }
   if (!player) return null;
 
   return {
     ...player,
-    jersey: "15",
-    height: "6'11\"",
-    weight: "284 lbs",
-    age: 29,
-    experience: "9 years",
-    seasonHistory: [
-      {
-        season: "2024-25",
-        games: 45,
-        points: 26.4,
-        rebounds: 12.4,
-        assists: 9.0,
-        zscore: 2.8,
-      },
-      {
-        season: "2023-24",
-        games: 79,
-        points: 26.4,
-        rebounds: 12.4,
-        assists: 9.0,
-        zscore: 2.8,
-      },
-      {
-        season: "2022-23",
-        games: 69,
-        points: 24.5,
-        rebounds: 11.8,
-        assists: 9.8,
-        zscore: 2.6,
-      },
-      {
-        season: "2021-22",
-        games: 74,
-        points: 27.1,
-        rebounds: 13.8,
-        assists: 7.9,
-        zscore: 2.9,
-      },
-    ],
+    jersey: player.jersey || "N/A",
+    height: player.height || "N/A",
+    weight: player.weight || "N/A",
+    age: player.age || null,
+    experience: "9 years", // Keep mock for now
+    seasonHistory: (player as any).seasons ? (player as any).seasons.map((season: any) => ({
+      season: season.season,
+      games: season.games_played,
+      points: season.points,
+      rebounds: season.total_rebounds,
+      assists: season.assists,
+      zscore: season.zscore_total,
+    })) : (
+      // Fallback to seasonDataDict for popular players or empty array
+      seasonDataDict[player.player_id || ''] || []
+    ),
     discussions: [
       {
         id: 1,
@@ -231,10 +254,13 @@ export default function PlayersPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [popularPlayers, setPopularPlayers] = useState<PopularPlayerData[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<PopularPlayerData[]>([]);
+  const [allPlayers, setAllPlayers] = useState<PopularPlayerData[]>([]);
+  const [filteredAllPlayers, setFilteredAllPlayers] = useState<PopularPlayerData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [allPlayersLoading, setAllPlayersLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist">("popular");
+  const [sidebarTab, setSidebarTab] = useState<"popular" | "watchlist" | "all">("popular");
   const [selectedPositions, setSelectedPositions] = useState<string[]>(["PG", "SG", "SF", "PF", "C"]);
   
   // Season data dictionary - preloaded for all players
@@ -280,6 +306,23 @@ export default function PlayersPage() {
   // Clear search function
   const clearSearch = () => {
     setSearchTerm('');
+    setFilteredAllPlayers(allPlayers); // Reset all players filter
+  };
+
+  // Fetch all players data
+  const fetchAllPlayersData = async (searchQuery: string = '') => {
+    setAllPlayersLoading(true);
+    try {
+      const response = await fetchAllPlayers(500, searchQuery); // Fetch up to 500 players
+      const allPlayersArray = Object.values(response.data).map(mapAllPlayerToPopularPlayer);
+      setAllPlayers(allPlayersArray);
+      setFilteredAllPlayers(allPlayersArray);
+    } catch (error) {
+      console.error('Error fetching all players:', error);
+      setError('Failed to load all players data');
+    } finally {
+      setAllPlayersLoading(false);
+    }
   };
 
   // Toggle position filter
@@ -297,9 +340,24 @@ export default function PlayersPage() {
       setLoading(true);
       setError(null);
       try {
+        // Load popular players
         const players = await fetchPopularPlayers();
         setPopularPlayers(players);
         setFilteredPlayers(players);
+
+        // Preload all players data (non-blocking)
+        try {
+          setAllPlayersLoading(true);
+          const allPlayersResponse = await fetchAllPlayers(300); // Fetch up to 300 players (avoiding API limit)
+          const allPlayersArray = Object.values(allPlayersResponse.data).map(mapAllPlayerToPopularPlayer);
+          setAllPlayers(allPlayersArray);
+          setFilteredAllPlayers(allPlayersArray);
+          console.log(`Preloaded ${allPlayersArray.length} players for All Players tab`);
+        } catch (allPlayersErr) {
+          console.warn('Warning: Failed to preload all players (non-blocking):', allPlayersErr);
+        } finally {
+          setAllPlayersLoading(false);
+        }
       } catch (err) {
         setError('Failed to load players');
         console.error('Error loading players:', err);
@@ -313,19 +371,28 @@ export default function PlayersPage() {
 
   // Filter players based on search term and position filters
   useEffect(() => {
-    let filtered = popularPlayers;
+    // If user starts typing, switch to All Players tab and fetch data if needed
+    if (searchTerm && sidebarTab !== 'all') {
+      setSidebarTab('all');
+      if (allPlayers.length === 0) {
+        fetchAllPlayersData(searchTerm);
+      }
+    }
 
-    // Apply position filter
+    // Filter popular players
+    let filteredPopular = popularPlayers;
+
+    // Apply position filter to popular players
     if (selectedPositions.length > 0 && selectedPositions.length < 5) {
-      filtered = filtered.filter((player: PopularPlayerData) =>
+      filteredPopular = filteredPopular.filter((player: PopularPlayerData) =>
         player.position.some((pos: string) => selectedPositions.includes(pos))
       );
     }
 
-    // Apply search filter
+    // Apply search filter to popular players
     if (searchTerm) {
       const normalizedSearchTerm = normalizeText(searchTerm);
-      filtered = filtered.filter(
+      filteredPopular = filteredPopular.filter(
         (player: PopularPlayerData) =>
           normalizeText(player.name).includes(normalizedSearchTerm) ||
           normalizeText(player.team).includes(normalizedSearchTerm) ||
@@ -335,8 +402,48 @@ export default function PlayersPage() {
       );
     }
 
-    setFilteredPlayers(filtered);
-  }, [searchTerm, selectedPositions, popularPlayers]);
+    setFilteredPlayers(filteredPopular);
+
+    // Filter all players
+    let filteredAll = allPlayers;
+
+    // Apply position filter to all players
+    if (selectedPositions.length > 0 && selectedPositions.length < 5) {
+      filteredAll = filteredAll.filter((player: PopularPlayerData) =>
+        player.position.some((pos: string) => selectedPositions.includes(pos))
+      );
+    }
+
+    // Apply search filter to all players
+    if (searchTerm) {
+      const normalizedSearchTerm = normalizeText(searchTerm);
+      filteredAll = filteredAll.filter(
+        (player: PopularPlayerData) =>
+          normalizeText(player.name).includes(normalizedSearchTerm) ||
+          normalizeText(player.team).includes(normalizedSearchTerm) ||
+          player.position.some((pos: string) =>
+            normalizeText(pos).includes(normalizedSearchTerm)
+          )
+      );
+    }
+
+    setFilteredAllPlayers(filteredAll);
+  }, [searchTerm, selectedPositions, popularPlayers, allPlayers, sidebarTab]);
+
+  // Load all players data when the "All Players" tab is selected
+  useEffect(() => {
+    if (sidebarTab === 'all' && allPlayers.length === 0 && !allPlayersLoading) {
+      fetchAllPlayersData();
+    }
+  }, [sidebarTab]);
+
+  // Load all players data when user manually clicks "All Players" tab
+  const handleTabChange = (value: "popular" | "watchlist" | "all") => {
+    setSidebarTab(value);
+    if (value === 'all' && allPlayers.length === 0 && !allPlayersLoading) {
+      fetchAllPlayersData();
+    }
+  };
 
   // Preload season data for all players when popularPlayers loads
   useEffect(() => {
@@ -392,7 +499,7 @@ export default function PlayersPage() {
   }, [popularPlayers]);
 
   const playerProfile = selectedPlayer
-    ? getPlayerProfile(selectedPlayer, popularPlayers)
+    ? getPlayerProfile(selectedPlayer, popularPlayers, allPlayers, seasonDataDict)
     : null;
 
   // Show loading screen while data is being fetched
@@ -538,11 +645,15 @@ export default function PlayersPage() {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as "popular" | "watchlist")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                <Tabs value={sidebarTab} onValueChange={(value) => handleTabChange(value as "popular" | "watchlist" | "all")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="popular" className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
-                      Popular Players
+                      Popular
+                    </TabsTrigger>
+                    <TabsTrigger value="all" className="flex items-center gap-2">
+                      <Search className="w-4 h-4" />
+                      All Players
                     </TabsTrigger>
                     <TabsTrigger value="watchlist" className="flex items-center gap-2">
                       <Bookmark className="w-4 h-4" />
@@ -655,6 +766,131 @@ export default function PlayersPage() {
                     </div>
                   </TabsContent>
                   
+                  <TabsContent value="all" className="mt-0">
+                    <div className="max-h-[600px] overflow-y-auto scrollbar-hide hover:scrollbar-show smooth-scroll px-6 pb-6">
+                      <div className="space-y-3 pt-6">
+                        {allPlayersLoading ? (
+                          <div className="text-center py-8">
+                            <CircleSpinner />
+                            <p className="text-gray-500 mt-2">Loading all players...</p>
+                          </div>
+                        ) : filteredAllPlayers.length === 0 && searchTerm ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p className="mb-2">No players found matching "{searchTerm}".</p>
+                            <p className="text-sm">Try searching for a different player name, team, or position.</p>
+                          </div>
+                        ) : filteredAllPlayers.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p className="mb-2">Start typing to search all NBA players.</p>
+                            <p className="text-sm">Search by player name, team, or position to see all results.</p>
+                          </div>
+                        ) : (
+                          filteredAllPlayers.map((player) => (
+                            <div
+                              key={player.id}
+                              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md relative ${
+                                selectedPlayer === player.id
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                              onClick={() => setSelectedPlayer(player.id)}
+                            >
+                              {/* Watch List Icon */}
+                              <button
+                                className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleWatchList(player);
+                                }}
+                              >
+                                {watchList.some(w => w.player_id === player.id) ? (
+                                  <Bookmark className="w-4 h-4 text-blue-500 fill-current" />
+                                ) : (
+                                  <Bookmark className="w-4 h-4 text-gray-400" />
+                                )}
+                              </button>
+
+                              <div className="flex items-center space-x-3">
+                                <div className="relative">
+                                  <img
+                                    src={player.image}
+                                    alt={player.name}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                    onError={(e) => {
+                                      e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.name}`;
+                                    }}
+                                  />
+                                  {player.trending === "up" && (
+                                    <TrendingUp className="w-3 h-3 text-green-500 absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                                  )}
+                                  {player.trending === "down" && (
+                                    <TrendingDown className="w-3 h-3 text-red-500 absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-semibold text-sm truncate">
+                                      {player.name}
+                                    </h3>
+                                    {player.trending === "up" && (
+                                      <TrendingUp className="w-3 h-3 text-green-500" />
+                                    )}
+                                    {player.trending === "down" && (
+                                      <TrendingDown className="w-3 h-3 text-red-500" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {player.team}
+                                    </Badge>
+                                    <div className="flex gap-1">
+                                      {player.position.map((pos, idx) => (
+                                        <Badge
+                                          key={idx}
+                                          className={`text-xs ${getPositionColor(pos)}`}
+                                        >
+                                          {pos}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    {player.points} PTS • {player.rebounds} REB • {player.assists} AST
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        player.zscore >= 2.0
+                                          ? "text-green-600"
+                                          : player.zscore >= 1.0
+                                            ? "text-blue-600"
+                                            : "text-gray-600"
+                                      }`}
+                                    >
+                                      Z-Score: +{player.zscore}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <span className="flex items-center gap-1">
+                                        <MessageSquare className="w-3 h-3" />
+                                        {player.discussions}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Target className="w-3 h-3" />
+                                        {player.projections}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
                   <TabsContent value="watchlist" className="mt-0">
                     <div className="max-h-[600px] overflow-y-auto scrollbar-hide hover:scrollbar-show smooth-scroll px-6 pb-6">
                       <div className="space-y-3 pt-6">
@@ -691,6 +927,11 @@ export default function PlayersPage() {
                               trending: "stable" as const,
                               discussions: 0,
                               projections: 0,
+                              // New fields - would need to be fetched if required
+                              height: null,
+                              weight: null,
+                              age: null,
+                              jersey: null,
                             };
                             
                             return (
@@ -825,7 +1066,7 @@ export default function PlayersPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold mb-1">
-                          +{playerProfile.zscore}
+                          +{(playerProfile.zscore || 0).toFixed(2)}
                         </div>
                         <div className="text-white/80 text-sm mb-3">Z-Score</div>
                         <Link href={`/players/${selectedPlayer}`}>
