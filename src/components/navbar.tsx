@@ -22,12 +22,6 @@ export default function Navbar() {
           RosterGuru
         </Link>
         <div className="flex gap-4 items-center">
-          <Link
-            href="/discussion"
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            Discussion
-          </Link>
           <SignedIn>
             <Link
               href="/dashboard"
