@@ -35,43 +35,48 @@ class ZScoreCalculator:
                 logger.warning(f"Category {category} not found in data")
                 continue
             
-            # Handle null values
-            values = df[category].fillna(0)
-            
-            # Calculate mean and standard deviation from top 30%
-            if category in self.negative_categories:
-                # For negative categories, lower is better. "Top" is the bottom 30%.
-                cutoff = values.quantile(0.4)
-                top_performers = values[values <= cutoff]
-                if len(top_performers) > 1:  # Need at least 2 for std dev
-                    mean_val = top_performers.mean()
-                    std_val = top_performers.std()
-                else:
-                    mean_val = values.mean()  # Fallback to overall mean
-                    std_val = values.std()    # Fallback to overall std dev
+            # Use impact-weighted calculation for shooting percentages
+            if category in ['field_goal_percentage', 'free_throw_percentage']:
+                df[f'zscore_{category}'] = self._calculate_impact_weighted_zscore(df, category)
             else:
-                # For positive categories, higher is better. "Top" is the top 30%.
-                cutoff = values.quantile(0.6)
-                top_performers = values[values >= cutoff]
-                if len(top_performers) > 1:  # Need at least 2 for std dev
-                    mean_val = top_performers.mean()
-                    std_val = top_performers.std()
-                else:
-                    mean_val = values.mean()  # Fallback to overall mean
-                    std_val = values.std()    # Fallback to overall std dev
-            
-            if std_val == 0:
-                logger.warning(f"Standard deviation is 0 for {category}, setting Z-scores to 0")
-                df[f'zscore_{category}'] = 0
-            else:
-                # Calculate Z-score
-                z_scores = (values - mean_val) / std_val
+                # Standard z-score calculation for other stats
+                # Handle null values
+                values = df[category].fillna(0)
                 
-                # Invert Z-scores for negative categories (like turnovers)
+                # Calculate mean and standard deviation from top 40%
                 if category in self.negative_categories:
-                    z_scores = -z_scores
+                    # For negative categories, lower is better. "Top" is the bottom 30%.
+                    cutoff = values.quantile(0.4)
+                    top_performers = values[values <= cutoff]
+                    if len(top_performers) > 1:  # Need at least 2 for std dev
+                        mean_val = top_performers.mean()
+                        std_val = top_performers.std()
+                    else:
+                        mean_val = values.mean()  # Fallback to overall mean
+                        std_val = values.std()    # Fallback to overall std dev
+                else:
+                    # For positive categories, higher is better. "Top" is the top 40%.
+                    cutoff = values.quantile(0.60) # gets top 45% of values
+                    top_performers = values[values >= cutoff]
+                    if len(top_performers) > 1:  # Need at least 2 for std dev
+                        mean_val = top_performers.mean()
+                        std_val = top_performers.std()
+                    else:
+                        mean_val = values.mean()  # Fallback to overall mean
+                        std_val = values.std()    # Fallback to overall std dev
                 
-                df[f'zscore_{category}'] = z_scores
+                if std_val == 0:
+                    logger.warning(f"Standard deviation is 0 for {category}, setting Z-scores to 0")
+                    df[f'zscore_{category}'] = 0
+                else:
+                    # Calculate Z-score
+                    z_scores = (values - mean_val) / std_val
+                    
+                    df[f'zscore_{category}'] = z_scores
+        
+        # Manual inversion for turnovers (after standard calculation)
+        if 'zscore_turnovers' in df.columns:
+            df['zscore_turnovers'] = df['zscore_turnovers'] * -1
         
         # Calculate composite Z-score
         df['zscore_total'] = self._calculate_composite_zscore(df)
@@ -80,6 +85,63 @@ class ZScoreCalculator:
         result = df.to_dict('records')
         
         logger.info(f"Calculated Z-scores for {len(result)} players")
+        return result
+    
+    def _calculate_impact_weighted_zscore(self, df: pd.DataFrame, category: str) -> pd.Series:
+        """Calculate impact-weighted z-score for shooting percentages
+        Formula: impact = (player% - mean%) × attempts_per_game
+        Then z-score = impact / σ_impact
+        """
+        # Map category to attempts column
+        attempts_column = {
+            'field_goal_percentage': 'field_goals_attempted',
+            'free_throw_percentage': 'free_throws_attempted'
+        }.get(category)
+        
+        if not attempts_column or attempts_column not in df.columns:
+            logger.warning(f"Attempts column {attempts_column} not found for {category}, using standard z-score")
+            # Fallback to standard calculation
+            values = df[category].fillna(0)
+            if values.std() == 0:
+                return pd.Series(0, index=df.index)
+            return (values - values.mean()) / values.std()
+        
+        # Filter valid players (with attempts and valid percentages)
+        valid_mask = (df[attempts_column] > 0) & (df[category] > 0) & df[category].notna() & df[attempts_column].notna()
+        valid_df = df[valid_mask]
+        
+        if len(valid_df) == 0:
+            logger.warning(f"No valid players found for {category}")
+            return pd.Series(0, index=df.index)
+        
+        # Calculate league mean percentage
+        mean_percentage = valid_df[category].mean()
+        
+        # Calculate impact for all valid players
+        impacts = (valid_df[category] - mean_percentage) * valid_df[attempts_column]
+        
+        # Calculate standard deviation of impacts
+        if impacts.std() == 0:
+            logger.warning(f"Standard deviation of impacts is 0 for {category}")
+            return pd.Series(0, index=df.index)
+        
+        mean_impact = impacts.mean()
+        std_impact = impacts.std()
+        
+        # Calculate z-scores for all players
+        result = pd.Series(0.0, index=df.index)
+        
+        for idx in df.index:
+            if idx in valid_df.index:
+                player_percentage = df.loc[idx, category]
+                player_attempts = df.loc[idx, attempts_column]
+                player_impact = (player_percentage - mean_percentage) * player_attempts
+                result.loc[idx] = (player_impact - mean_impact) / std_impact
+            else:
+                # Players with no attempts get 0 z-score
+                result.loc[idx] = 0.0
+        
+        logger.info(f"Calculated impact-weighted z-scores for {category}: {len(valid_df)} valid players")
         return result
     
     def _calculate_composite_zscore(self, df: pd.DataFrame) -> pd.Series:

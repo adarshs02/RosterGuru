@@ -67,3 +67,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom scrollbar styles for Popular Players section */
+@layer utilities {
+  .scrollbar-hide {
+    /* Hide scrollbar for Webkit browsers */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+  
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+  
+  .hover\:scrollbar-show:hover {
+    scrollbar-width: thin;
+  }
+  
+  .hover\:scrollbar-show:hover::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+  
+  .hover\:scrollbar-show:hover::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  
+  .hover\:scrollbar-show:hover::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  
+  .hover\:scrollbar-show:hover::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}

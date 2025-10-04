@@ -36,7 +36,7 @@ ZSCORE_CONFIG = {
         "free_throw_percentage",
         "three_pointers_made"
     ],
-    "negative_categories": ["turnovers"],  # Categories where lower values are better
+    "negative_categories": [],  # Categories where lower values are better
     "weights": {
         "points": 1.0,
         "total_rebounds": 1.0,
