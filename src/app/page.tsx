@@ -46,14 +46,14 @@ export default async function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
             {[
               {
                 icon: <Database className="w-6 h-6" />,
                 title: "Player Database",
                 description:
                   "Sortable table with 10+ years of historical NBA stats and z-score rankings",
-                badge: "Core Feature",
+                badge: "Historical Stats",
               },
               {
                 icon: <BarChart3 className="w-6 h-6" />,
@@ -67,22 +67,34 @@ export default async function Home() {
                 title: "Discussion Forums",
                 description:
                   "Threaded conversations organized by players, teams, and strategies",
-                badge: "Community",
+                badge: "Community Insights",
               },
               {
                 icon: <Target className="w-6 h-6" />,
                 title: "Projection Sharing",
                 description:
                   "Upload and compare player projections with community consensus",
-                badge: "Predictions",
+                badge: "Player Projections",
+              },
+              {
+                icon: <Trophy className="w-6 h-6" />,
+                title: "AI Mock Drafts",
+                description:
+                  "Simulate drafts with AI-driven picks to practice strategy",
+                badge: "AI Drafts",
               },
             ].map((feature, index) => {
-              // Make Player Database card clickable
+              // Identify feature types
               const isPlayerDatabase = feature.title === "Player Database";
-              
+              const isDiscussion = feature.title === "Discussion Forums";
+              const isPlayerProfiles = feature.title === "Player Profiles";
+              const isProjectionSharing = feature.title === "Projection Sharing";
+              const isAiMockDrafts = feature.title === "AI Mock Drafts";
+              const isClickable = isPlayerDatabase || isDiscussion || isPlayerProfiles || isProjectionSharing || isAiMockDrafts;
+
               const cardContent = (
-                <Card className={`hover:shadow-lg transition-shadow ${
-                  isPlayerDatabase ? 'cursor-pointer hover:border-blue-200' : ''
+                <Card className={`h-full flex flex-col hover:shadow-lg transition-shadow ${
+                  isClickable ? 'cursor-pointer hover:border-blue-200' : ''
                 }`}>
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
@@ -93,25 +105,33 @@ export default async function Home() {
                     </div>
                     <CardTitle className="text-lg flex items-center gap-2">
                       {feature.title}
-                      {isPlayerDatabase && (
+                      {isClickable && (
                         <ArrowUpRight className="w-4 h-4 text-blue-600" />
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <CardDescription>{feature.description}</CardDescription>
                   </CardContent>
                 </Card>
               );
-              
-              return isPlayerDatabase ? (
-                <Link key={index} href="/playerdatabase">
+
+              return (
+                <Link
+                  key={index}
+                  href={
+                    isPlayerDatabase
+                      ? "/playerdatabase"
+                      : isDiscussion
+                      ? "/discussion"
+                      : (isPlayerProfiles || isProjectionSharing)
+                      ? "/coming-soon"
+                      : "/coming-soon"
+                  }
+                  className="block h-full"
+                >
                   {cardContent}
                 </Link>
-              ) : (
-                <div key={index}>
-                  {cardContent}
-                </div>
               );
             })}
           </div>
@@ -123,24 +143,28 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">
-              Trusted by Fantasy Basketball Enthusiasts
+              Open-Source Fantasy Basketball Intelligence
             </h2>
             <p className="text-blue-100 max-w-2xl mx-auto">
-              Join a growing community of data-driven fantasy players
+              A truly free platform for the fantasy basketball community
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 text-center">
+          <div className="grid md:grid-cols-4 gap-8 text-center">
+            <div>
+              <div className="text-4xl font-bold mb-2">$0</div>
+              <div className="text-blue-100">Forever Free</div>
+            </div>
             <div>
               <div className="text-4xl font-bold mb-2">10+</div>
               <div className="text-blue-100">Years of NBA Data</div>
             </div>
             <div>
               <div className="text-4xl font-bold mb-2">500+</div>
-              <div className="text-blue-100">Active Players</div>
+              <div className="text-blue-100">Current Players</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">1000+</div>
-              <div className="text-blue-100">Player Discussions</div>
+              <div className="text-4xl font-bold mb-2">∞</div>
+              <div className="text-blue-100">No Usage Limits</div>
             </div>
           </div>
         </div>
@@ -199,19 +223,27 @@ export default async function Home() {
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">
-            Ready to Dominate Your Fantasy League?
+            Start Using RosterGuru Now
           </h2>
           <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join thousands of fantasy basketball players who use RosterGuru to
-            make smarter, data-driven decisions.
+            No sign-up required to browse data. Create a free account only if you want to participate
+            in discussions or save your preferences.
           </p>
-          <Link
-            href={user ? "/dashboard" : "/sign-up"}
-            className="inline-flex items-center px-8 py-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium"
-          >
-            {user ? "Go to Dashboard" : "Get Started Free"}
-            <ArrowUpRight className="ml-2 w-5 h-5" />
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link
+              href="/playerdatabase"
+              className="inline-flex items-center px-8 py-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium"
+            >
+              Browse Player Database (No Sign-Up)
+              <ArrowUpRight className="ml-2 w-5 h-5" />
+            </Link>
+            <Link
+              href="/discussion"
+              className="inline-flex items-center px-8 py-4 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-lg font-medium"
+            >
+              View Discussions
+            </Link>
+          </div>
         </div>
       </section>
 

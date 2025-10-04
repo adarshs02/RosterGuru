@@ -22,7 +22,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="#features"
+                  href="/coming-soon"
                   className="text-gray-600 hover:text-blue-600"
                 >
                   Player Profiles
@@ -37,7 +37,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/discussion" className="text-gray-600 hover:text-blue-600">
                   Discussion Forums
                 </Link>
               </li>
@@ -49,22 +49,22 @@ export default function Footer() {
             <h3 className="font-semibold text-gray-900 mb-4">Analytics</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Z-Score Rankings
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Historical Stats
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Projections
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Trends
                 </Link>
               </li>
@@ -76,22 +76,22 @@ export default function Footer() {
             <h3 className="font-semibold text-gray-900 mb-4">Community</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/discussion" className="text-gray-600 hover:text-blue-600">
                   Player Discussions
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Team Analysis
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Strategy Guides
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Expert Insights
                 </Link>
               </li>
@@ -103,22 +103,22 @@ export default function Footer() {
             <h3 className="font-semibold text-gray-900 mb-4">Support</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Help Center
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Getting Started
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-blue-600">
+                <Link href="/coming-soon" className="text-gray-600 hover:text-blue-600">
                   FAQ
                 </Link>
               </li>
